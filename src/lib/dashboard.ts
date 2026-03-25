@@ -209,6 +209,62 @@ export interface SeasonMatrixResponse {
   error?: string;
 }
 
+export type GrowthSourceName = "skool" | "substack" | "beehiiv" | "manual";
+export type GrowthFreshness = "fresh" | "stale" | "expired" | "no_data";
+
+export interface GrowthSourceSummary {
+  entityKey: string;
+  source: GrowthSourceName;
+  venture: "PE" | "G2L" | "Pidgeon" | "Personal";
+  label: string;
+  url: string | null;
+  collectionMethod: string;
+  freshness: GrowthFreshness;
+  capturedAt: string | null;
+  current: {
+    members: number | null;
+    freeSubscribers: number | null;
+    paidSubscribers: number | null;
+    followers: number | null;
+    mrr: number | null;
+    arr: number | null;
+    conversionRate: number | null;
+    retentionRate: number | null;
+  };
+  delta7d: {
+    members: number | null;
+    freeSubscribers: number | null;
+    paidSubscribers: number | null;
+    followers: number | null;
+    mrr: number | null;
+    arr: number | null;
+  };
+  delta30d: {
+    members: number | null;
+    freeSubscribers: number | null;
+    paidSubscribers: number | null;
+    followers: number | null;
+    mrr: number | null;
+    arr: number | null;
+  };
+}
+
+export interface GrowthResponse {
+  sources: GrowthSourceSummary[];
+  summary: {
+    tracked: number;
+    fresh: number;
+    stale: number;
+    expired: number;
+    totalMembers: number | null;
+    totalSubscribers: number | null;
+    totalPaidSubscribers: number | null;
+    totalMRR: number | null;
+  };
+  fetchedAt?: string;
+  error?: string;
+}
+
 export interface PostizResponse {
   posts: Array<{
     id: string;

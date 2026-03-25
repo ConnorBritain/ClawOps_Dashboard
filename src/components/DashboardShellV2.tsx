@@ -11,6 +11,7 @@ import {
   formatCurrency,
   formatDuration,
   formatPercent,
+  type GrowthResponse,
   getVentureClasses,
   getWorkStatusClasses,
   type AgentSnapshot,
@@ -46,6 +47,7 @@ interface DashboardData {
   work: WorkResponse | null;
   beacon: BeaconResponse | null;
   contentPipeline: ContentPipelineResponse | null;
+  growth: GrowthResponse | null;
   postiz: PostizResponse | null;
 }
 
@@ -144,21 +146,71 @@ function buildAttentionSignal(data: DashboardData, work: WorkResponse) {
   return { label: "Clear deck", detail: "No immediate risk", tone: "#4ADE80" };
 }
 
-function buildSystemHealth(data: DashboardData) {
-  const cronErrors = data.cron?.summary.errors || 0;
-  if (cronErrors > 0) {
-    return { label: "Cron warning", detail: `${cronErrors} cron issue${cronErrors === 1 ? "" : "s"} reported` };
+function formatLargeNumber(value: number | null) {
+  if (value == null) return "--";
+  return value.toLocaleString();
+}
+
+function formatRatePercent(value: number | null) {
+  if (value == null) return "--";
+  return `${Math.round(value * 100)}%`;
+}
+
+function growthSummaryLine(source: GrowthResponse["sources"][number]) {
+  if (source.source === "skool" && source.current.members != null) {
+    return `${formatLargeNumber(source.current.members)} members`;
   }
 
-  if (data.cron?.source === "supabase") {
-    return { label: "Stable", detail: "Snapshot live" };
+  const subscriberCount =
+    (source.current.freeSubscribers || 0) + (source.current.paidSubscribers || 0);
+  if (subscriberCount > 0) {
+    return `${formatLargeNumber(subscriberCount)} subs`;
   }
 
-  if (data.cron?.source) {
-    return { label: "Fallback", detail: `${data.cron.source} in use` };
+  if (source.current.followers != null) {
+    return `${formatLargeNumber(source.current.followers)} followers`;
   }
 
-  return { label: "Unknown", detail: "Telemetry source unavailable" };
+  if (source.current.mrr != null) {
+    return `${formatCurrency(source.current.mrr)} MRR`;
+  }
+
+  return "No snapshot";
+}
+
+function buildGrowthSignal(growth: GrowthResponse | null) {
+  if (!growth?.sources.length) {
+    return { value: "No sources", detail: "Growth registry empty" };
+  }
+
+  const liveSources = growth.sources.filter((source) => source.capturedAt);
+  if (!liveSources.length) {
+    return { value: `${growth.summary.tracked} tracked`, detail: "Skool + Substack pending" };
+  }
+
+  const preferred =
+    liveSources.find((source) => source.source === "skool" && source.current.members != null) ||
+    liveSources.find((source) => source.source === "substack") ||
+    liveSources.find((source) => source.source === "beehiiv") ||
+    liveSources[0];
+
+  return {
+    value: growthSummaryLine(preferred),
+    detail: `${preferred.label} · ${preferred.freshness}`,
+  };
+}
+
+function growthFreshnessClasses(freshness: GrowthResponse["sources"][number]["freshness"]) {
+  switch (freshness) {
+    case "fresh":
+      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+    case "stale":
+      return "border-amber-500/20 bg-amber-500/10 text-amber-300";
+    case "expired":
+      return "border-rose-500/20 bg-rose-500/10 text-rose-300";
+    default:
+      return "border-neutral-500/20 bg-neutral-500/10 text-neutral-400";
+  }
 }
 
 export default function DashboardShellV2() {
@@ -177,13 +229,14 @@ export default function DashboardShellV2() {
     work: null,
     beacon: null,
     contentPipeline: null,
+    growth: null,
     postiz: null,
   });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [season, seasonMatrix, spend, cron, work, beacon, contentPipeline, postiz] = await Promise.all([
+      const [season, seasonMatrix, spend, cron, work, beacon, contentPipeline, growth, postiz] = await Promise.all([
         fetchResource<SeasonResponse>("/api/season"),
         fetchResource<SeasonMatrixResponse>("/api/season-matrix"),
         fetchResource<SpendResponse>("/api/spend"),
@@ -191,10 +244,11 @@ export default function DashboardShellV2() {
         fetchResource<WorkResponse>("/api/work"),
         fetchResource<BeaconResponse>("/api/beacon"),
         fetchResource<ContentPipelineResponse>("/api/content-pipeline"),
+        fetchResource<GrowthResponse>("/api/growth"),
         fetchResource<PostizResponse>("/api/postiz"),
       ]);
       if (cancelled) return;
-      setData({ season, seasonMatrix, spend, cron, work, beacon, contentPipeline, postiz });
+      setData({ season, seasonMatrix, spend, cron, work, beacon, contentPipeline, growth, postiz });
       setLoading(false);
     }
     setLoading(true);
@@ -232,7 +286,7 @@ export default function DashboardShellV2() {
 
       <div className="hidden gap-3 lg:grid lg:grid-cols-12">
         <div className="col-span-7"><SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} /></div>
-        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
+        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} growth={data.growth} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
         <div className="col-span-5"><ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} /></div>
       </div>
@@ -269,14 +323,14 @@ function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, age
   if (tab === "season") return <SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
   if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} showHeader={false} />;
-  return <MetricsSection loading={loading} spend={data.spend} cron={data.cron} postiz={data.postiz} work={work} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact={false} />;
+  return <MetricsSection loading={loading} spend={data.spend} growth={data.growth} cron={data.cron} postiz={data.postiz} work={work} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact={false} />;
 }
 
 function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: WorkResponse }) {
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
   const nextPost = data.postiz?.summary?.nextScheduled;
-  const systemHealth = buildSystemHealth(data);
+  const growthSignal = buildGrowthSignal(data.growth);
   return (
     <header className="card surface-strong relative mb-4 overflow-hidden p-4 lg:p-5">
       <div className="absolute right-5 top-5">
@@ -306,9 +360,9 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
           compact
         />
         <OverviewMiniCard
-          label="System health"
-          value={systemHealth.label}
-          detail={systemHealth.detail}
+          label="Growth"
+          value={growthSignal.value}
+          detail={growthSignal.detail}
           compact
         />
       </div>
@@ -329,7 +383,7 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
   const nextPost = data.postiz?.summary?.nextScheduled;
-  const systemHealth = buildSystemHealth(data);
+  const growthSignal = buildGrowthSignal(data.growth);
 
   if (loading) {
     return (
@@ -371,9 +425,9 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
             compact
           />
           <OverviewMiniCard
-            label="System health"
-            value={systemHealth.label}
-            detail={systemHealth.detail}
+            label="Growth"
+            value={growthSignal.value}
+            detail={growthSignal.detail}
             compact
           />
         </div>
@@ -745,6 +799,7 @@ function ContentSection({
 function MetricsSection({
   loading,
   spend,
+  growth,
   cron,
   postiz,
   work,
@@ -754,6 +809,7 @@ function MetricsSection({
 }: {
   loading: boolean;
   spend: SpendResponse | null;
+  growth: GrowthResponse | null;
   cron: CronResponse | null;
   postiz: PostizResponse | null;
   work: WorkResponse;
@@ -842,6 +898,48 @@ function MetricsSection({
                 </div>
               </div>
             )) : <p className="text-sm text-neutral-500">No season blueprint coverage yet.</p>}
+          </div>
+        </div>
+
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Growth</p>
+              <p className="mt-1 text-base font-medium text-white">Audience and revenue snapshots</p>
+            </div>
+            <p className="text-xs text-neutral-500">{growth?.summary.tracked || 0} tracked</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <MetricBox label="Tracked" value={String(growth?.summary.tracked || 0)} />
+            <MetricBox label="Fresh" value={String(growth?.summary.fresh || 0)} />
+            <MetricBox label="Members" value={formatLargeNumber(growth?.summary.totalMembers ?? null)} />
+            <MetricBox label="MRR" value={growth?.summary.totalMRR != null ? formatCurrency(growth.summary.totalMRR) : "--"} />
+          </div>
+          <div className="mt-3 space-y-1.5">
+            {growth?.sources.length ? growth.sources.map((source) => (
+              <div key={source.entityKey} className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-white">{source.label}</p>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(source.venture)}`}>{source.venture}</span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-2.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+                      <span>{source.source}</span>
+                      <span>{growthSummaryLine(source)}</span>
+                      {source.current.conversionRate != null ? <span>{formatRatePercent(source.current.conversionRate)} conv</span> : null}
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${growthFreshnessClasses(source.freshness)}`}>
+                    {source.freshness === "no_data" ? "pending" : source.freshness}
+                  </span>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5 text-sm text-neutral-500">
+                No growth sources registered yet.
+              </div>
+            )}
           </div>
         </div>
 
