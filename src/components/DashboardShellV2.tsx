@@ -991,6 +991,67 @@ function matrixStatusMeta(status: SeasonMatrixSlot["status"]) {
   }
 }
 
+const SEASON_STATUS_RANK: Record<SeasonMatrixSlot["status"], number> = {
+  not_started: 0,
+  idea: 1,
+  drafted: 2,
+  review: 3,
+  approved: 4,
+  scheduled: 5,
+  published: 6,
+};
+
+function aggregateSeasonSlots(slots: SeasonMatrixSlot[]) {
+  const grouped = new Map<string, SeasonMatrixSlot[]>();
+  for (const slot of slots) {
+    const existing = grouped.get(slot.slotId) || [];
+    existing.push(slot);
+    grouped.set(slot.slotId, existing);
+  }
+
+  return Array.from(grouped.values()).map((items) => {
+    const sorted = [...items].sort((left, right) => SEASON_STATUS_RANK[right.status] - SEASON_STATUS_RANK[left.status]);
+    const primary = sorted[0];
+    const publishedCount = items.filter((item) => item.status === "published").length;
+    const activeCount = items.filter((item) => item.status !== "not_started").length;
+    const targetCount = Math.max(primary.targetCount || 1, 1);
+    return {
+      ...primary,
+      publishedCount,
+      activeCount,
+      targetCount,
+      fulfillmentMet: publishedCount >= targetCount,
+      partiallyMet: publishedCount > 0 && publishedCount < targetCount,
+    };
+  });
+}
+
+function seasonFulfillmentMeta(slot: ReturnType<typeof aggregateSeasonSlots>[number]) {
+  if (slot.fulfillmentMet) {
+    return {
+      label: slot.targetCount > 1 ? `Fulfilled ${slot.publishedCount}/${slot.targetCount}` : "Fulfilled",
+      dot: "#4ADE80",
+      classes: "border-emerald-500/20 bg-emerald-500/12 text-emerald-300",
+      cardClasses: "border-emerald-500/18 bg-emerald-500/[0.06]",
+    };
+  }
+
+  if (slot.partiallyMet) {
+    return {
+      label: `${slot.publishedCount}/${slot.targetCount} complete`,
+      dot: "#22D3EE",
+      classes: "border-cyan-500/20 bg-cyan-500/10 text-cyan-300",
+      cardClasses: "border-cyan-500/18 bg-cyan-500/[0.05]",
+    };
+  }
+
+  const status = matrixStatusMeta(slot.status);
+  return {
+    ...status,
+    cardClasses: "border-white/[0.06] bg-white/[0.02]",
+  };
+}
+
 function weekSummaryLabel(selectedSeason: number, week: number) {
   return SEASON_PATTERNS[selectedSeason]?.[week - 1]?.name || `Week ${week}`;
 }
@@ -1014,21 +1075,21 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
 
   const preLaunch = season.weekInSeason === 0;
   const slots = seasonMatrix?.slots || [];
-  const seasonSlots = slots.filter((slot) => slot.season === selectedSeason);
+  const seasonSlots = aggregateSeasonSlots(slots.filter((slot) => slot.season === selectedSeason));
   const seasonPatterns = SEASON_PATTERNS[selectedSeason] || [];
   const activeWeek = Math.min(Math.max(selectedWeek, 1), 13);
   const weekSlots = seasonSlots
     .filter((slot) => slot.week === activeWeek)
     .sort((left, right) => left.sortOrder - right.sortOrder);
-  const startedCount = seasonSlots.filter((slot) => slot.status !== "not_started").length;
-  const publishedCount = seasonSlots.filter((slot) => slot.status === "published").length;
-  const filledWeeks = new Set(seasonSlots.filter((slot) => slot.status !== "not_started").map((slot) => slot.week)).size;
+  const startedCount = seasonSlots.filter((slot) => slot.activeCount > 0).length;
+  const publishedCount = seasonSlots.filter((slot) => slot.fulfillmentMet).length;
+  const filledWeeks = new Set(seasonSlots.filter((slot) => slot.activeCount > 0).map((slot) => slot.week)).size;
 
   const weekCards = Array.from({ length: 13 }, (_, index) => {
     const week = index + 1;
     const weekItems = seasonSlots.filter((slot) => slot.week === week);
-    const done = weekItems.filter((slot) => slot.status === "published").length;
-    const live = weekItems.filter((slot) => slot.status !== "not_started").length;
+    const done = weekItems.filter((slot) => slot.fulfillmentMet).length;
+    const live = weekItems.filter((slot) => slot.activeCount > 0).length;
     return {
       week,
       title: seasonPatterns[index]?.name || `Week ${week}`,
@@ -1136,7 +1197,7 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                     </div>
                     <div className="space-y-1.5">
                       {ventureSlots.map((slot) => {
-                        const status = matrixStatusMeta(slot.status);
+                        const status = seasonFulfillmentMeta(slot);
                         const href = slot.canonicalUrl || slot.driveLink;
                         const label = seasonSlotLabel(slot);
                         const title = cleanSeasonSlotTitle(slot, label);
@@ -1148,7 +1209,8 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                             target={href ? "_blank" : undefined}
                             rel={href ? "noreferrer" : undefined}
                             className={cx(
-                              "block rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors",
+                              "block rounded-[16px] border p-2.5 transition-colors",
+                              status.cardClasses,
                               href && "hover:border-white/[0.12] hover:bg-white/[0.03]"
                             )}
                           >
@@ -1159,7 +1221,7 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                                   <p className="text-sm font-medium text-white">{label}</p>
                                   {slot.targetCount > 1 ? (
                                     <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
-                                      {slot.targetCount}x
+                                      {slot.publishedCount > 0 ? `${slot.publishedCount}/${slot.targetCount}` : `${slot.targetCount}x`}
                                     </span>
                                   ) : null}
                                 </div>
