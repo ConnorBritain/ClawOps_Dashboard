@@ -7,6 +7,7 @@ import { AGENTS } from "@/lib/agents";
 import {
   buildAgentSnapshots,
   DASHBOARD_TABS,
+  type ContentPipelineResponse,
   formatCurrency,
   formatDuration,
   formatPercent,
@@ -14,8 +15,6 @@ import {
   getWorkStatusClasses,
   type AgentSnapshot,
   type BeaconResponse,
-  type ContentItem,
-  type ContentStatusResponse,
   type CronJobSummary,
   type CronResponse,
   type DashboardTab,
@@ -31,6 +30,7 @@ import {
   formatTimeAgo,
   formatTimeUntil,
 } from "@/lib/time";
+import { ContentPipelineSection } from "@/components/ContentPipelineSection";
 import { RefreshButton, useRefresh } from "@/components/RefreshProvider";
 
 interface DashboardData {
@@ -39,7 +39,7 @@ interface DashboardData {
   cron: CronResponse | null;
   work: WorkResponse | null;
   beacon: BeaconResponse | null;
-  content: ContentStatusResponse | null;
+  contentPipeline: ContentPipelineResponse | null;
   postiz: PostizResponse | null;
 }
 
@@ -104,13 +104,6 @@ function cronState(job: CronJobSummary) {
   return ["#4ADE80", "Healthy"] as const;
 }
 
-function contentMeta(status: ContentItem["status"]) {
-  if (status === "published") return ["Published", "#4ADE80", "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"] as const;
-  if (status === "reviewed") return ["In Review", "#60A5FA", "bg-sky-500/10 text-sky-300 border-sky-500/20"] as const;
-  if (status === "drafted") return ["Drafted", "#FBBF24", "bg-amber-500/10 text-amber-300 border-amber-500/20"] as const;
-  return ["Not Started", "#555555", "bg-neutral-500/10 text-neutral-300 border-neutral-500/20"] as const;
-}
-
 export default function DashboardShellV2() {
   const { refreshKey } = useRefresh();
   const router = useRouter();
@@ -124,24 +117,24 @@ export default function DashboardShellV2() {
     cron: null,
     work: null,
     beacon: null,
-    content: null,
+    contentPipeline: null,
     postiz: null,
   });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [season, spend, cron, work, beacon, content, postiz] = await Promise.all([
+      const [season, spend, cron, work, beacon, contentPipeline, postiz] = await Promise.all([
         fetchResource<SeasonResponse>("/api/season"),
         fetchResource<SpendResponse>("/api/spend"),
         fetchResource<CronResponse>("/api/cron"),
         fetchResource<WorkResponse>("/api/work"),
         fetchResource<BeaconResponse>("/api/beacon"),
-        fetchResource<ContentStatusResponse>("/api/content-status"),
+        fetchResource<ContentPipelineResponse>("/api/content-pipeline"),
         fetchResource<PostizResponse>("/api/postiz"),
       ]);
       if (cancelled) return;
-      setData({ season, spend, cron, work, beacon, content, postiz });
+      setData({ season, spend, cron, work, beacon, contentPipeline, postiz });
       setLoading(false);
     }
     setLoading(true);
@@ -205,7 +198,7 @@ export default function DashboardShellV2() {
         <div className="col-span-7"><SeasonSection loading={loading} season={data.season} /></div>
         <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={workData} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
-        <div className="col-span-5"><ContentSection loading={loading} content={data.content} beacon={data.beacon} /></div>
+        <div className="col-span-5"><ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} /></div>
       </div>
 
       <footer className="mt-8 hidden items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-neutral-600 lg:flex">
@@ -221,7 +214,7 @@ export default function DashboardShellV2() {
 function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, agents: AgentSnapshot[], work: WorkResponse) {
   if (tab === "season") return <SeasonSection loading={loading} season={data.season} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
-  if (tab === "content") return <ContentSection loading={loading} content={data.content} beacon={data.beacon} />;
+  if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} />;
   return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} compact={false} />;
 }
 
@@ -352,62 +345,24 @@ function MetricBox({ label, value }: { label: string; value: string }) {
   return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</p><p className="mt-1 text-sm font-medium text-white">{value}</p></div>;
 }
 
-function ContentSection({ loading, content, beacon }: { loading: boolean; content: ContentStatusResponse | null; beacon: BeaconResponse | null }) {
-  if (loading) return <SectionCard title="Content" subtitle="Publishing flow"><SkeletonRows rows={5} /></SectionCard>;
-  const items = content?.items || [];
-  const recent = beacon?.recent || [];
-
+function ContentSection({
+  loading,
+  content,
+  beacon,
+  postiz,
+}: {
+  loading: boolean;
+  content: ContentPipelineResponse | null;
+  beacon: BeaconResponse | null;
+  postiz: PostizResponse | null;
+}) {
   return (
-    <SectionCard title="Content" subtitle="Publishing flow">
-      <div className="space-y-4">
-        <div className="surface-strong rounded-[24px] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{content?.phaseLabel || "Publishing cadence"}</p>
-              <p className="mt-1 text-base font-medium text-white">{content?.isPreLaunch ? "Content is aligned to Season 1 prep, not a fake active week." : "Weekly and biweekly content lanes are tracking real work queue items."}</p>
-            </div>
-            <span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{items.length} lanes</span>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {items.length ? items.map((item) => <ContentLane key={item.type} item={item} />) : <ErrorState message="Content pipeline data is unavailable right now." />}
-        </div>
-
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Beacon feed</p><p className="mt-1 text-base font-medium text-white">Recent activity</p></div>
-            {beacon ? <span className="text-xs text-neutral-500">{beacon.thisWeekThoughts} this week</span> : null}
-          </div>
-          {recent.length ? <div className="space-y-2">{recent.slice(0, 6).map((activity) => <div key={activity.id} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm leading-relaxed text-neutral-200">{activity.text}</p><p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">{activity.type || "thought"}</p></div><div className="text-right text-[11px] text-neutral-500"><p>{activity.source}</p><p className="mt-1">{formatTimeAgo(activity.createdAt)}</p></div></div></div>)}</div> : <p className="text-sm text-neutral-500">No recent Beacon activity yet.</p>}
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
-
-function ContentLane({ item }: { item: ContentItem }) {
-  const [label, tone, classes] = contentMeta(item.status);
-  const steps: ContentItem["status"][] = ["not-started", "drafted", "reviewed", "published"];
-  const currentStep = steps.indexOf(item.status);
-  return (
-    <div className="surface-soft rounded-[24px] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-medium text-white">{item.label}</p>
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(item.venture)}`}>{item.venture}</span>
-            <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">{item.cadence}</span>
-          </div>
-          <p className="mt-2 text-sm text-neutral-400">{item.summary}</p>
-          <p className="mt-2 text-xs text-neutral-500">{item.lastUpdate ? `Updated ${formatCentralDateTime(item.lastUpdate)}` : "No linked work captured yet"}</p>
-        </div>
-        <span className={`rounded-full border px-2.5 py-1 text-[11px] ${classes}`}>{label}</span>
-      </div>
-      <div className="mt-4 grid grid-cols-4 gap-1.5">{steps.map((step, index) => <div key={step} className="h-2 rounded-full" style={{ backgroundColor: index <= currentStep ? tone : "rgba(255,255,255,0.07)" }} />)}</div>
-      <div className="mt-3 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500"><span>{item.workItemCount} linked item{item.workItemCount === 1 ? "" : "s"}</span>{item.assignedTo.length ? <span>{item.assignedTo.join(", ")}</span> : null}</div>
-      {item.latestTitle ? <p className="mt-3 text-sm text-neutral-200">{item.latestTitle}</p> : null}
-    </div>
+    <ContentPipelineSection
+      loading={loading}
+      content={content}
+      beacon={beacon}
+      postiz={postiz}
+    />
   );
 }
 

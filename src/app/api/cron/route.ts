@@ -63,6 +63,10 @@ const STATIC_CRON_DEFINITIONS: StaticCronDefinition[] = [
   { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents Newsletter", expr: "0 9 * * 2" },
   { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Lab Plan", expr: "30 10 * * 1" },
   { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", expr: "0 15 * * 5" },
+  { id: "haven-daily", agentId: "haven", name: "Daily Household Sweep", expr: "0 7 * * *" },
+  { id: "haven-sunday", agentId: "haven", name: "Sunday Family Review", expr: "0 19 * * 0" },
+  { id: "atlas-monday", agentId: "atlas", name: "Weekly Navigation Review", expr: "0 6 * * 1" },
+  { id: "atlas-thursday", agentId: "atlas", name: "Thursday Course Correct", expr: "0 20 * * 4" },
 ];
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

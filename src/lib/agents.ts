@@ -5,7 +5,7 @@
 export interface AgentDef {
   id: string;
   name: string;
-  venture: "PE" | "G2L" | "Pidgeon" | "Shared";
+  venture: "PE" | "G2L" | "Pidgeon" | "Shared" | "Personal";
   envKey: string; // env var name for OpenRouter key
   emoji: string;
 }
@@ -20,6 +20,8 @@ export const AGENTS: AgentDef[] = [
   { id: "echo-pidgeon", name: "Echo Pidgeon", venture: "Pidgeon", envKey: "OPENROUTER_KEY_ECHO_PIDGEON", emoji: "🔊" },
   { id: "enzo", name: "Enzo", venture: "Shared", envKey: "OPENROUTER_KEY_ENZO", emoji: "🧘" },
   { id: "default", name: "Shared Key", venture: "Shared", envKey: "OPENROUTER_API_KEY", emoji: "🔑" },
+  { id: "haven", name: "Haven", venture: "Personal", envKey: "OPENROUTER_KEY_HAVEN", emoji: "haven" },
+  { id: "atlas", name: "Atlas", venture: "Personal", envKey: "OPENROUTER_KEY_ATLAS", emoji: "atlas" },
 ];
 
 export interface AgentSpend {

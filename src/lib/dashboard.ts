@@ -119,6 +119,49 @@ export interface ContentStatusResponse {
   error?: string;
 }
 
+export type ContentPipelineType =
+  | "pattern_card"
+  | "build_note"
+  | "marginalia"
+  | "currents"
+  | "challenge_lab"
+  | "social_post"
+  | "newsletter"
+  | "heygen_video"
+  | "skool_post";
+
+export type ContentPipelineStatus =
+  | "idea"
+  | "drafted"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "published";
+
+export interface ContentPipelineItem {
+  id: string;
+  title: string;
+  type: ContentPipelineType;
+  venture: "PE" | "G2L" | "Pidgeon" | "Personal";
+  status: ContentPipelineStatus;
+  createdBy: string | null;
+  driveLink: string | null;
+  postizId: string | null;
+  beehiivId: string | null;
+  platform: string | null;
+  season: number | null;
+  week: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentPipelineResponse {
+  items: ContentPipelineItem[];
+  fetchedAt?: string;
+  error?: string;
+}
+
 export interface PostizResponse {
   posts: Array<{
     id: string;
@@ -184,6 +227,7 @@ const ventureOrder: Record<AgentDef["venture"], number> = {
   PE: 1,
   G2L: 2,
   Pidgeon: 3,
+  Personal: 4,
 };
 
 const priorityOrder: Record<string, number> = {
@@ -234,6 +278,8 @@ export function getVentureClasses(venture: string) {
       return "bg-[#DC97FF]/10 text-[#E8C6FF] border-[#DC97FF]/20";
     case "Pidgeon":
       return "bg-sky-500/10 text-sky-300 border-sky-500/20";
+    case "Personal":
+      return "bg-teal-500/10 text-teal-200 border-teal-500/20";
     default:
       return "bg-neutral-500/10 text-neutral-300 border-neutral-500/20";
   }
