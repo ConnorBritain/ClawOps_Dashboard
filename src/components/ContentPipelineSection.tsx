@@ -20,6 +20,10 @@ function labelize(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function normalizePlatform(value: string) {
+  return value.trim().toLowerCase();
+}
+
 function statusMeta(status: ContentPipelineItem["status"]) {
   switch (status) {
     case "drafted":
@@ -42,7 +46,43 @@ function platformBadge(platform: string | null) {
     return "Platform TBD";
   }
 
-  return labelize(platform);
+  switch (normalizePlatform(platform)) {
+    case "x":
+    case "twitter":
+      return "X";
+    case "linkedin":
+      return "LinkedIn";
+    case "instagram":
+      return "Instagram";
+    case "tiktok":
+      return "TikTok";
+    case "youtube":
+      return "YouTube";
+    default:
+      return labelize(platform);
+  }
+}
+
+function contentLabel(item: ContentPipelineItem) {
+  if (item.type === "social_post") {
+    return platformBadge(item.platform);
+  }
+
+  if (item.type === "currents") {
+    return item.venture === "G2L" ? "Currents Newsletter" : "Currents";
+  }
+
+  if (item.type === "newsletter") {
+    return item.venture === "Pidgeon" ? "Dispatch Newsletter" : "Newsletter";
+  }
+
+  if (item.type === "skool_post") return "Skool Posts";
+  if (item.type === "pattern_card") return "Pattern Card";
+  if (item.type === "build_note") return "Build Note";
+  if (item.type === "marginalia") return "Marginalia";
+  if (item.type === "challenge_lab") return "Challenge Lab";
+  if (item.type === "heygen_video") return "YouTube";
+  return labelize(item.type);
 }
 
 function driveIcon() {
@@ -202,7 +242,7 @@ export function ContentPipelineSection({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-[15px] font-medium text-white">{item.title}</p>
                         <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
-                          {labelize(item.type)}
+                          {contentLabel(item)}
                         </span>
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${statusClasses}`}>
                           {statusLabel}

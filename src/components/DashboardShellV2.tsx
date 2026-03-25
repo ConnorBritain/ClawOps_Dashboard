@@ -61,13 +61,54 @@ const tabMeta: Record<DashboardTab, { label: string; navLabel: string; eyebrow: 
   metrics: { label: "Metrics", navLabel: "Metrics", eyebrow: "Business pulse", icon: <ChartIcon /> },
 };
 
-const quickLinks = [
+const utilityLinks = [
   ["Slack", "https://patternengineai.slack.com"],
   ["Drive", "https://drive.google.com/drive/u/0/shared-drives"],
   ["OpenRouter", "https://openrouter.ai/settings/keys"],
   ["Postiz", "https://platform.postiz.com"],
   ["Skool", "https://www.skool.com/genai-growth-labs-6038"],
   ["Beacon", "https://supabase.com/dashboard"],
+] as const;
+
+const ventureLaunchpads = [
+  {
+    venture: "PE" as const,
+    label: "PE",
+    note: "Letters",
+    links: [
+      { label: "Substack", href: "https://letters.patternengine.ai" },
+    ],
+  },
+  {
+    venture: "G2L" as const,
+    label: "G2L",
+    note: "Community",
+    links: [
+      { label: "X", href: "https://x.com/GenAIGrowthLabs" },
+      { label: "LinkedIn", href: "https://linkedin.com/company/generativegrowthlabs" },
+      { label: "Skool", href: "https://www.skool.com/genai-growth-labs-6038" },
+    ],
+  },
+  {
+    venture: "Personal" as const,
+    label: "Personal",
+    note: "Creator",
+    links: [
+      { label: "X", href: "https://x.com/connorbritain" },
+      { label: "LinkedIn", href: "https://linkedin.com/in/connorengland" },
+      { label: "Instagram", href: "https://instagram.com/connorbritain" },
+      { label: "TikTok", href: "https://tiktok.com/@patternengine" },
+      { label: "YouTube", href: "https://youtube.com/@connor.r.england" },
+    ],
+  },
+  {
+    venture: "Pidgeon" as const,
+    label: "Pidgeon",
+    note: "Health",
+    links: [
+      { label: "LinkedIn", href: "https://linkedin.com/company/pidgeonhealth" },
+    ],
+  },
 ] as const;
 
 function normalizeTab(value: string | null): DashboardTab {
@@ -156,48 +197,11 @@ function formatRatePercent(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
-function growthSummaryLine(source: GrowthResponse["sources"][number]) {
-  if (source.source === "skool" && source.current.members != null) {
-    return `${formatLargeNumber(source.current.members)} members`;
-  }
-
-  const subscriberCount =
-    (source.current.freeSubscribers || 0) + (source.current.paidSubscribers || 0);
-  if (subscriberCount > 0) {
-    return `${formatLargeNumber(subscriberCount)} subs`;
-  }
-
-  if (source.current.followers != null) {
-    return `${formatLargeNumber(source.current.followers)} followers`;
-  }
-
-  if (source.current.mrr != null) {
-    return `${formatCurrency(source.current.mrr)} MRR`;
-  }
-
-  return "No snapshot";
-}
-
-function buildGrowthSignal(growth: GrowthResponse | null) {
-  if (!growth?.sources.length) {
-    return { value: "No sources", detail: "Growth registry empty" };
-  }
-
-  const liveSources = growth.sources.filter((source) => source.capturedAt);
-  if (!liveSources.length) {
-    return { value: `${growth.summary.tracked} tracked`, detail: "Skool + Substack pending" };
-  }
-
-  const preferred =
-    liveSources.find((source) => source.source === "skool" && source.current.members != null) ||
-    liveSources.find((source) => source.source === "substack") ||
-    liveSources.find((source) => source.source === "beehiiv") ||
-    liveSources[0];
-
-  return {
-    value: growthSummaryLine(preferred),
-    detail: `${preferred.label} · ${preferred.freshness}`,
-  };
+function growthStatusLabel(source: GrowthSource) {
+  if (!hasGrowthSnapshot(source) || source.freshness === "no_data") return "Pending";
+  if (source.freshness === "fresh") return "Live";
+  if (source.freshness === "stale") return "Stale";
+  return "Expired";
 }
 
 function growthFreshnessClasses(freshness: GrowthResponse["sources"][number]["freshness"]) {
@@ -211,6 +215,234 @@ function growthFreshnessClasses(freshness: GrowthResponse["sources"][number]["fr
     default:
       return "border-neutral-500/20 bg-neutral-500/10 text-neutral-400";
   }
+}
+
+type GrowthSource = GrowthResponse["sources"][number];
+
+function growthFreshnessDotClasses(freshness: GrowthSource["freshness"]) {
+  switch (freshness) {
+    case "fresh":
+      return "bg-emerald-400";
+    case "stale":
+      return "bg-amber-400";
+    case "expired":
+      return "bg-rose-400";
+    default:
+      return "bg-neutral-500";
+  }
+}
+
+function sumNullablePair(left: number | null, right: number | null) {
+  if (left == null && right == null) return null;
+  return (left || 0) + (right || 0);
+}
+
+function growthSourcePriority(source: GrowthSource) {
+  if (source.entityKey === "g2l-skool") return 0;
+  if (source.entityKey === "pe-substack") return 1;
+  if (source.entityKey === "g2l-beehiiv") return 2;
+  if (source.entityKey === "pidgeon-beehiiv") return 3;
+  return 9;
+}
+
+function hasGrowthSnapshot(source: GrowthSource) {
+  return Boolean(
+    source.capturedAt ||
+      source.current.members != null ||
+      source.current.freeSubscribers != null ||
+      source.current.paidSubscribers != null ||
+      source.current.followers != null ||
+      source.current.mrr != null ||
+      source.current.arr != null,
+  );
+}
+
+function preferredGrowthSource(growth: GrowthResponse | null) {
+  if (!growth?.sources.length) return null;
+  const liveSources = growth.sources.filter(hasGrowthSnapshot);
+  const sourcePool = liveSources.length ? liveSources : growth.sources;
+  return [...sourcePool].sort((left, right) => growthSourcePriority(left) - growthSourcePriority(right))[0] || null;
+}
+
+function orderedGrowthSources(growth: GrowthResponse | null) {
+  if (!growth?.sources.length) return [];
+  return [...growth.sources].sort((left, right) => {
+    const liveDelta = Number(hasGrowthSnapshot(right)) - Number(hasGrowthSnapshot(left));
+    if (liveDelta !== 0) return liveDelta;
+    return growthSourcePriority(left) - growthSourcePriority(right);
+  });
+}
+
+function growthCollectorLabel(source: GrowthSource) {
+  if (source.entityKey === "g2l-skool") return "via Cyrus";
+  switch (source.collectionMethod) {
+    case "auth_collector":
+      return "auth collector";
+    case "official_api":
+      return "official API";
+    case "manual":
+      return "manual snapshot";
+    default:
+      return source.collectionMethod.replace(/_/g, " ");
+  }
+}
+
+function growthPendingCopy(source: GrowthSource) {
+  if (source.entityKey === "g2l-skool") {
+    return { label: "Collector pending", detail: "Awaiting Cyrus snapshot" };
+  }
+  if (source.source === "substack") {
+    return { label: "API key pending", detail: "Manual snapshot fallback" };
+  }
+  if (source.source === "beehiiv") {
+    return { label: "API pending", detail: "Awaiting first sync" };
+  }
+  return { label: "Pending", detail: "Awaiting first snapshot" };
+}
+
+function growthTrendTone(source: GrowthSource) {
+  if (source.source === "skool") return "#4ADE80";
+  if (source.source === "substack") return "#FBBF24";
+  if (source.source === "beehiiv") return "#60A5FA";
+  return "#FF7D45";
+}
+
+function growthSeriesValues(source: GrowthSource) {
+  const memberSeries = source.daily.map((point) => point.members).filter((value): value is number => value != null);
+  if (memberSeries.length) return memberSeries;
+
+  const subscriberSeries = source.daily
+    .map((point) => sumNullablePair(point.freeSubscribers, point.paidSubscribers))
+    .filter((value): value is number => value != null);
+  if (subscriberSeries.length) return subscriberSeries;
+
+  const followerSeries = source.daily.map((point) => point.followers).filter((value): value is number => value != null);
+  if (followerSeries.length) return followerSeries;
+
+  return source.daily.map((point) => point.mrr).filter((value): value is number => value != null);
+}
+
+function growthPrimaryDelta(source: GrowthSource) {
+  if (source.source === "skool") {
+    return {
+      delta7d: source.delta7d.members,
+      delta30d: source.delta30d.members,
+    };
+  }
+
+  const delta7dSubscribers = sumNullablePair(source.delta7d.freeSubscribers, source.delta7d.paidSubscribers);
+  const delta30dSubscribers = sumNullablePair(source.delta30d.freeSubscribers, source.delta30d.paidSubscribers);
+
+  if (delta7dSubscribers != null || delta30dSubscribers != null) {
+    return {
+      delta7d: delta7dSubscribers,
+      delta30d: delta30dSubscribers,
+    };
+  }
+
+  if (source.delta7d.followers != null || source.delta30d.followers != null) {
+    return {
+      delta7d: source.delta7d.followers,
+      delta30d: source.delta30d.followers,
+    };
+  }
+
+  return {
+    delta7d: source.delta7d.mrr,
+    delta30d: source.delta30d.mrr,
+  };
+}
+
+function formatGrowthDelta(value: number | null, currency = false) {
+  if (value == null) return "--";
+  if (currency) return `${value >= 0 ? "+" : "-"}${formatCurrency(Math.abs(value))}`;
+  return `${value >= 0 ? "+" : "-"}${formatLargeNumber(Math.abs(value))}`;
+}
+
+function growthKeyMetrics(source: GrowthSource) {
+  const totalSubscribers = sumNullablePair(source.current.freeSubscribers, source.current.paidSubscribers);
+
+  if (source.source === "skool") {
+    return [
+      { label: "Members", value: formatLargeNumber(source.current.members) },
+      { label: "Conv", value: formatRatePercent(source.current.conversionRate) },
+      { label: "MRR", value: source.current.mrr != null ? formatCurrency(source.current.mrr) : "--" },
+      { label: "Retention", value: formatRatePercent(source.current.retentionRate) },
+    ];
+  }
+
+  if (source.source === "substack") {
+    return [
+      { label: "Subs", value: formatLargeNumber(totalSubscribers) },
+      { label: "Paid", value: formatLargeNumber(source.current.paidSubscribers) },
+      { label: "Followers", value: formatLargeNumber(source.current.followers) },
+      { label: "30d", value: formatGrowthDelta(growthPrimaryDelta(source).delta30d) },
+    ];
+  }
+
+  return [
+    { label: "Subs", value: formatLargeNumber(totalSubscribers) },
+    { label: "Paid", value: formatLargeNumber(source.current.paidSubscribers) },
+    { label: "MRR", value: source.current.mrr != null ? formatCurrency(source.current.mrr) : "--" },
+    { label: "7d", value: formatGrowthDelta(growthPrimaryDelta(source).delta7d, source.current.mrr != null && totalSubscribers == null) },
+  ];
+}
+
+function growthSpotlightCopy(source: GrowthSource) {
+  const pending = growthPendingCopy(source);
+  const totalSubscribers = sumNullablePair(source.current.freeSubscribers, source.current.paidSubscribers);
+
+  if (!hasGrowthSnapshot(source)) {
+    return {
+      label: pending.label,
+      value: source.label,
+      detail: pending.detail,
+      emphasis: "#FBBF24",
+    };
+  }
+
+  if (source.source === "skool") {
+    return {
+      label: source.label,
+      value: source.current.members != null ? `${formatLargeNumber(source.current.members)} members` : "Members pending",
+      detail: source.current.conversionRate != null ? `${formatRatePercent(source.current.conversionRate)} conv` : growthCollectorLabel(source),
+      emphasis: "#4ADE80",
+    };
+  }
+
+  if (totalSubscribers != null) {
+    return {
+      label: source.label,
+      value: `${formatLargeNumber(totalSubscribers)} subs`,
+      detail: source.current.paidSubscribers != null ? `${formatLargeNumber(source.current.paidSubscribers)} paid` : growthCollectorLabel(source),
+      emphasis: source.source === "substack" ? "#FBBF24" : "#60A5FA",
+    };
+  }
+
+  if (source.current.followers != null) {
+    return {
+      label: source.label,
+      value: `${formatLargeNumber(source.current.followers)} followers`,
+      detail: growthCollectorLabel(source),
+      emphasis: source.source === "substack" ? "#FBBF24" : "#60A5FA",
+    };
+  }
+
+  if (source.current.mrr != null) {
+    return {
+      label: source.label,
+      value: `${formatCurrency(source.current.mrr)} MRR`,
+      detail: growthCollectorLabel(source),
+      emphasis: "#4ADE80",
+    };
+  }
+
+  return {
+    label: source.label,
+    value: "Snapshot live",
+    detail: growthCollectorLabel(source),
+    emphasis: "#4ADE80",
+  };
 }
 
 export default function DashboardShellV2() {
@@ -302,7 +534,7 @@ export default function DashboardShellV2() {
           <div className="h-full overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+104px)]">
             {mobileTab === "dashboard" ? (
                 <div className="dashboard-fade pb-4">
-                  <MobileOverviewSection loading={loading} data={data} work={workData} />
+                  <MobileOverviewSection loading={loading} data={data} work={workData} onOpenMetrics={() => handleTabChange("metrics")} />
                 </div>
               ) : (
                 <div className="dashboard-fade pb-4">
@@ -330,60 +562,61 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
   const nextPost = data.postiz?.summary?.nextScheduled;
-  const growthSignal = buildGrowthSignal(data.growth);
+  const growthSource = preferredGrowthSource(data.growth);
   return (
-    <header className="card surface-strong relative mb-4 overflow-hidden p-4 lg:p-5">
+    <header className="card surface-strong relative mb-4 overflow-hidden p-3.5 lg:p-4.5">
       <div className="absolute right-5 top-5">
         <RefreshButton />
       </div>
 
       <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-        <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.24)]">
-          <Image src="/clawops-logo.png" alt="ClawOps" width={48} height={48} className="rounded-2xl" />
+        <div className="rounded-[18px] border border-white/10 bg-black/25 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.24)]">
+          <Image src="/clawops-logo.png" alt="ClawOps" width={42} height={42} className="rounded-2xl" />
         </div>
-        <h1 className="mt-3 text-3xl font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
-        <p className="mt-2 max-w-xl text-sm text-neutral-400">Command brief for the fleet.</p>
+        <h1 className="mt-2.5 text-[2.35rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+        <p className="mt-1.5 max-w-xl text-[13px] text-neutral-400">Command brief for the fleet.</p>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <div className="mt-4.5 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
-        <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
+        <HeroSignalCard label="Open tasks" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
         <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
         <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
       </div>
 
-      <div className="mt-2.5 grid gap-2.5 lg:grid-cols-2">
+      <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <OverviewMiniCard
           label="Next publish"
           value={nextPost?.channel || "Nothing queued"}
           detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
           compact
         />
-        <OverviewMiniCard
-          label="Growth"
-          value={growthSignal.value}
-          detail={growthSignal.detail}
-          compact
-        />
+        <GrowthSpotlightCard source={growthSource} compact />
       </div>
 
-      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-        {quickLinks.map(([label, href]) => (
-          <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
-            {label}
-          </a>
-        ))}
+      <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <VentureLaunchpadGrid />
+        <UtilityLinksGrid />
       </div>
     </header>
   );
 }
 
-function MobileOverviewSection({ loading, data, work }: { loading: boolean; data: DashboardData; work: WorkResponse }) {
+function MobileOverviewSection({
+  loading,
+  data,
+  work,
+  onOpenMetrics,
+}: {
+  loading: boolean;
+  data: DashboardData;
+  work: WorkResponse;
+  onOpenMetrics?: () => void;
+}) {
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
   const nextPost = data.postiz?.summary?.nextScheduled;
-  const growthSignal = buildGrowthSignal(data.growth);
+  const growthSource = preferredGrowthSource(data.growth);
 
   if (loading) {
     return (
@@ -396,51 +629,40 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
   }
 
   return (
-      <section className="space-y-3">
-      <div className="card surface-strong relative overflow-hidden p-3">
+    <section className="space-y-3">
+      <div className="card surface-strong relative overflow-hidden p-2.25">
         <div className="absolute right-3.5 top-3.5">
           <RefreshButton compact />
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="rounded-[18px] border border-white/10 bg-black/25 p-2 shadow-[0_12px_26px_rgba(0,0,0,0.24)]">
-            <Image src="/clawops-logo.png" alt="ClawOps" width={30} height={30} className="rounded-xl" />
+          <div className="rounded-[16px] border border-white/10 bg-black/25 p-1.25 shadow-[0_12px_26px_rgba(0,0,0,0.24)]">
+            <Image src="/clawops-logo.png" alt="ClawOps" width={22} height={22} className="rounded-xl" />
           </div>
-          <h1 className="mt-2.5 text-[1.65rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
-          <p className="mt-1.5 max-w-[14rem] text-[12px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
+          <h1 className="mt-1.5 text-[1.32rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+          <p className="mt-0.75 max-w-[11rem] text-[10px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-2 gap-1.25">
           <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
-          <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
+          <HeroSignalCard label="Open tasks" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
           <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
           <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-1.25 grid grid-cols-2 gap-1.25">
           <OverviewMiniCard
             label="Next publish"
             value={nextPost?.channel || "Nothing queued"}
             detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
             compact
           />
-          <OverviewMiniCard
-            label="Growth"
-            value={growthSignal.value}
-            detail={growthSignal.detail}
-            compact
-          />
+          <GrowthSpotlightCard source={growthSource} compact onClick={onOpenMetrics} />
         </div>
 
-        <div className="mt-2 overflow-x-auto pb-1">
-          <div className="flex min-w-max gap-1.5">
-            {quickLinks.map(([label, href]) => (
-              <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
-                {label}
-              </a>
-            ))}
-          </div>
+        <div className="mt-1.25 grid gap-1.25">
+          <VentureLaunchpadGrid compact />
+          <UtilityLinksGrid compact />
         </div>
       </div>
     </section>
@@ -449,10 +671,135 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
 
 function OverviewMiniCard({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
   return (
-    <div className={cx("surface-soft rounded-[20px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
+    <div className={cx("surface-soft rounded-[20px]", compact ? "px-2.5 py-2" : "px-3 py-3")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-medium text-white", compact ? "mt-1 text-[12px]" : "mt-2 text-sm")}>{value}</p>
+      <p className={cx("font-medium text-white", compact ? "mt-1 text-[11px]" : "mt-2 text-sm")}>{value}</p>
       <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-1 text-xs")}>{detail}</p>
+    </div>
+  );
+}
+
+function GrowthSpotlightCard({
+  source,
+  compact = false,
+  onClick,
+}: {
+  source: GrowthSource | null;
+  compact?: boolean;
+  onClick?: () => void;
+}) {
+  if (!source) {
+    return <OverviewMiniCard label="Growth" value="No sources" detail="Growth registry empty" compact={compact} />;
+  }
+
+  const pending = growthPendingCopy(source);
+  const spotlight = growthSpotlightCopy(source);
+  const delta = growthPrimaryDelta(source);
+  const hasSnapshot = hasGrowthSnapshot(source);
+  const statusLabel = growthStatusLabel(source);
+  const badgeLabel = hasSnapshot && delta.delta7d != null ? `${formatGrowthDelta(delta.delta7d)} / 7d` : pending.label;
+  const detailLine = hasSnapshot
+    ? `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : statusLabel.toLowerCase()}`
+    : pending.detail;
+  const Wrapper = onClick ? "button" : "div";
+
+  return (
+      <Wrapper
+        {...(onClick ? { type: "button", onClick } : {})}
+        className={cx(
+          "surface-soft rounded-[18px] text-left transition-all",
+          compact ? "min-h-[80px] px-2.25 py-2" : "px-3 py-3",
+          onClick ? "w-full hover:border-white/[0.12]" : "",
+        )}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Growth</p>
+            <p className={cx("truncate font-medium text-white", compact ? "mt-1 text-[11px]" : "mt-1.5 text-sm")}>{spotlight.label}</p>
+          </div>
+        <span className={cx("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em]", growthFreshnessClasses(source.freshness))}>
+          <span className={cx("h-1.5 w-1.5 rounded-full", growthFreshnessDotClasses(source.freshness))} />
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="mt-1.5 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className={cx("truncate font-semibold leading-[0.94]", compact ? "text-[0.98rem]" : "text-[1.1rem]")} style={{ color: spotlight.emphasis }}>
+            {spotlight.value}
+          </p>
+          <p className="mt-0.5 text-[10px] text-neutral-500">{spotlight.detail}</p>
+        </div>
+        <span className="rounded-full border border-white/[0.08] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-neutral-400">
+          {badgeLabel}
+        </span>
+      </div>
+
+      <p className="mt-1.5 text-[10px] text-neutral-500">{detailLine}</p>
+    </Wrapper>
+  );
+}
+
+function VentureLaunchpadGrid({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={cx("grid gap-1.25", compact ? "grid-cols-2" : "grid-cols-2")}>
+      {ventureLaunchpads.map((entry) => (
+        <VentureLaunchpadCard key={entry.venture} entry={entry} compact={compact} />
+      ))}
+    </div>
+  );
+}
+
+function VentureLaunchpadCard({
+  entry,
+  compact = false,
+}: {
+  entry: (typeof ventureLaunchpads)[number];
+  compact?: boolean;
+}) {
+  return (
+    <div className={cx("surface-soft rounded-[18px]", compact ? "px-2.25 py-2" : "px-3 py-2.5")}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] ${getVentureClasses(entry.venture)}`}>
+          {entry.label}
+        </span>
+        <span className="text-[9px] uppercase tracking-[0.14em] text-neutral-500">{entry.note}</span>
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {entry.links.map((link) => (
+          <a
+            key={`${entry.venture}-${link.label}`}
+            href={link.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.12] hover:text-white"
+          >
+            {link.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={cx("surface-soft rounded-[18px]", compact ? "px-2.25 py-2" : "px-3 py-2.5")}>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Ops links</p>
+      <div className="mt-1.5 grid grid-cols-3 gap-1.25">
+        {utilityLinks.map(([label, href]) => (
+          <a
+            key={label}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.12] hover:text-white"
+          >
+            <span className="h-1 w-1 rounded-full bg-[#FF7D45]" />
+            <span className="truncate">{label}</span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
@@ -460,10 +807,10 @@ function OverviewMiniCard({ label, value, detail, compact = false }: { label: st
 function HeroSignalCard({ label, value, detail, tone, compact = false }: { label: string; value: string; detail: string; tone: string; compact?: boolean }) {
   const longValue = value.length > 10;
   return (
-    <div className={cx("surface-soft rounded-[22px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
-      <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1.5 text-[0.98rem]" : "mt-1.5 text-[1.28rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
-      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
+    <div className={cx("surface-soft rounded-[22px]", compact ? "px-2.25 py-2" : "px-3 py-3")}>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
+      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1 text-[0.9rem]" : "mt-1 text-[1.08rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
     </div>
   );
 }
@@ -493,17 +840,138 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle: s
 
 const MATRIX_VENTURES: SeasonMatrixSlot["venture"][] = ["PE", "G2L", "Pidgeon", "Personal"];
 
-const CONTENT_TYPE_META: Record<SeasonMatrixSlot["contentType"], { label: string; compact: string }> = {
-  pattern_card: { label: "Pattern Card", compact: "Pattern" },
-  build_note: { label: "Build Note", compact: "Build" },
-  marginalia: { label: "Marginalia", compact: "Marginalia" },
-  currents: { label: "Currents", compact: "Currents" },
-  challenge_lab: { label: "Challenge Lab", compact: "Challenge" },
-  social_post: { label: "Social Posts", compact: "Social" },
-  newsletter: { label: "Newsletter", compact: "Newsletter" },
-  heygen_video: { label: "HeyGen Video", compact: "Video" },
-  skool_post: { label: "Skool Post", compact: "Skool" },
-};
+function normalizePlatform(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function platformLabel(value: string) {
+  switch (normalizePlatform(value)) {
+    case "x":
+    case "twitter":
+      return "X";
+    case "linkedin":
+      return "LinkedIn";
+    case "instagram":
+      return "Instagram";
+    case "tiktok":
+      return "TikTok";
+    case "youtube":
+      return "YouTube";
+    default:
+      return value.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+}
+
+function seasonSlotLabel(slot: SeasonMatrixSlot) {
+  if (slot.contentType === "social_post") {
+    const platform = slot.platforms[0];
+    return platform ? platformLabel(platform) : "Social Post";
+  }
+
+  if (slot.contentType === "currents") {
+    return slot.venture === "G2L" ? "Currents Newsletter" : "Currents";
+  }
+
+  if (slot.contentType === "newsletter") {
+    return slot.venture === "Pidgeon" ? "Dispatch Newsletter" : "Newsletter";
+  }
+
+  if (slot.contentType === "skool_post") {
+    return "Skool Posts";
+  }
+
+  if (slot.contentType === "challenge_lab") {
+    return "Challenge Lab";
+  }
+
+  if (slot.contentType === "pattern_card") {
+    return "Pattern Card";
+  }
+
+  if (slot.contentType === "build_note") {
+    return "Build Note";
+  }
+
+  if (slot.contentType === "marginalia") {
+    return "Marginalia";
+  }
+
+  if (slot.contentType === "heygen_video") {
+    return "YouTube";
+  }
+
+  return "Planned slot";
+}
+
+function seasonSlotChannels(slot: SeasonMatrixSlot) {
+  if (slot.contentType === "social_post") {
+    return slot.platforms.map(platformLabel);
+  }
+
+  if (slot.contentType === "pattern_card" || slot.contentType === "build_note" || slot.contentType === "marginalia") {
+    return ["Substack"];
+  }
+
+  if (slot.contentType === "currents") {
+    return ["Beehiiv"];
+  }
+
+  if (slot.contentType === "newsletter") {
+    return slot.venture === "Pidgeon" ? ["Dispatch"] : ["Newsletter"];
+  }
+
+  if (slot.contentType === "skool_post" || slot.contentType === "challenge_lab") {
+    return ["Skool"];
+  }
+
+  if (slot.contentType === "heygen_video") {
+    return ["YouTube"];
+  }
+
+  return [];
+}
+
+function cleanSeasonSlotTitle(slot: SeasonMatrixSlot, label: string) {
+  const raw = slot.title || slot.plannedTitle;
+  if (!raw) return null;
+
+  const cleaned = raw
+    .replace(/^(PE|G2L|Pidgeon|Personal)\s+/i, "")
+    .replace(new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[—:-]\\s*`, "i"), "")
+    .replace(/^Social\s*[—:-]\s*/i, "")
+    .replace(/^Newsletter\s*[—:-]\s*/i, "")
+    .replace(/^Skool Posts?\s*[—:-]\s*/i, "")
+    .replace(/^Challenge Lab\s*[—:-]\s*/i, "")
+    .replace(/^Dispatch\s*[—:-]\s*/i, "")
+    .trim();
+
+  if (/^week\s+\d+$/i.test(cleaned)) return null;
+  if (!cleaned.length || cleaned.toLowerCase() === label.toLowerCase()) return null;
+  return cleaned;
+}
+
+function channelBadgeMeta(channel: string) {
+  switch (channel) {
+    case "Substack":
+      return { mono: "S", classes: "border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" };
+    case "Beehiiv":
+      return { mono: "B", classes: "border-[#FBBF24]/20 bg-[#FBBF24]/10 text-[#FDE68A]" };
+    case "Skool":
+      return { mono: "Sk", classes: "border-[#DC97FF]/20 bg-[#DC97FF]/10 text-[#E9D5FF]" };
+    case "LinkedIn":
+      return { mono: "in", classes: "border-sky-500/20 bg-sky-500/10 text-sky-300" };
+    case "Instagram":
+      return { mono: "IG", classes: "border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-300" };
+    case "TikTok":
+      return { mono: "TT", classes: "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" };
+    case "YouTube":
+      return { mono: "YT", classes: "border-rose-500/20 bg-rose-500/10 text-rose-300" };
+    case "Dispatch":
+      return { mono: "D", classes: "border-white/[0.08] bg-white/[0.03] text-neutral-300" };
+    default:
+      return { mono: channel.slice(0, 1).toUpperCase(), classes: "border-white/[0.08] bg-white/[0.03] text-neutral-300" };
+  }
+}
 
 function matrixStatusMeta(status: SeasonMatrixSlot["status"]) {
   switch (status) {
@@ -671,6 +1139,9 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                       {ventureSlots.map((slot) => {
                         const status = matrixStatusMeta(slot.status);
                         const href = slot.canonicalUrl || slot.driveLink;
+                        const label = seasonSlotLabel(slot);
+                        const title = cleanSeasonSlotTitle(slot, label);
+                        const channels = seasonSlotChannels(slot);
                         return (
                           <a
                             key={slot.slotId}
@@ -686,18 +1157,26 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: status.dot }} />
-                                  <p className="text-sm font-medium text-white">{CONTENT_TYPE_META[slot.contentType].label}</p>
+                                  <p className="text-sm font-medium text-white">{label}</p>
                                   {slot.targetCount > 1 ? (
                                     <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
                                       {slot.targetCount}x
                                     </span>
                                   ) : null}
                                 </div>
-                                <p className="mt-1.5 text-sm leading-relaxed text-neutral-300">{slot.title || slot.plannedTitle || "Planned slot"}</p>
-                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+                                {title ? <p className="mt-1.5 text-sm leading-relaxed text-neutral-300">{title}</p> : null}
+                                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
                                   <span className={`rounded-full border px-2 py-0.5 ${status.classes}`}>{status.label}</span>
                                   {slot.ownerAgent ? <span>{slot.ownerAgent}</span> : null}
-                                  {slot.platforms.length ? <span>{slot.platforms.join(", ")}</span> : null}
+                                  {channels.map((channel) => {
+                                    const meta = channelBadgeMeta(channel);
+                                    return (
+                                      <span key={`${slot.slotId}-${channel}`} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 normal-case tracking-normal ${meta.classes}`}>
+                                        <span className="text-[9px] font-semibold uppercase">{meta.mono}</span>
+                                        <span>{channel}</span>
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             </div>
@@ -905,36 +1384,17 @@ function MetricsSection({
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Growth</p>
-              <p className="mt-1 text-base font-medium text-white">Audience and revenue snapshots</p>
+              <p className="mt-1 text-base font-medium text-white">Dedicated source telemetry</p>
             </div>
-            <p className="text-xs text-neutral-500">{growth?.summary.tracked || 0} tracked</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            <MetricBox label="Tracked" value={String(growth?.summary.tracked || 0)} />
-            <MetricBox label="Fresh" value={String(growth?.summary.fresh || 0)} />
-            <MetricBox label="Members" value={formatLargeNumber(growth?.summary.totalMembers ?? null)} />
-            <MetricBox label="MRR" value={growth?.summary.totalMRR != null ? formatCurrency(growth.summary.totalMRR) : "--"} />
+            <p className="text-xs text-neutral-500">
+              {growth?.sources.length
+                ? `${growth.sources.filter(hasGrowthSnapshot).length} live / ${growth.sources.length} wired`
+                : "No sources"}
+            </p>
           </div>
           <div className="mt-3 space-y-1.5">
-            {growth?.sources.length ? growth.sources.map((source) => (
-              <div key={source.entityKey} className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-white">{source.label}</p>
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(source.venture)}`}>{source.venture}</span>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap gap-2.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
-                      <span>{source.source}</span>
-                      <span>{growthSummaryLine(source)}</span>
-                      {source.current.conversionRate != null ? <span>{formatRatePercent(source.current.conversionRate)} conv</span> : null}
-                    </div>
-                  </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${growthFreshnessClasses(source.freshness)}`}>
-                    {source.freshness === "no_data" ? "pending" : source.freshness}
-                  </span>
-                </div>
-              </div>
+            {growth?.sources.length ? orderedGrowthSources(growth).map((source) => (
+              <GrowthSourceCard key={source.entityKey} source={source} />
             )) : (
               <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5 text-sm text-neutral-500">
                 No growth sources registered yet.
@@ -980,9 +1440,78 @@ function MetricsSection({
   );
 }
 
-function Sparkline({ values }: { values: number[] }) {
+function GrowthSourceCard({ source }: { source: GrowthSource }) {
+  const pending = growthPendingCopy(source);
+  const metrics = growthKeyMetrics(source);
+  const hasSnapshot = hasGrowthSnapshot(source);
+  const delta = growthPrimaryDelta(source);
+  const values = growthSeriesValues(source);
+
+  return (
+    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cx("h-2 w-2 rounded-full", growthFreshnessDotClasses(source.freshness))} />
+            <p className="truncate text-sm font-medium text-white">{source.label}</p>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(source.venture)}`}>{source.venture}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+            <span>{source.source}</span>
+            <span>{growthCollectorLabel(source)}</span>
+          </div>
+        </div>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${growthFreshnessClasses(source.freshness)}`}>
+          {growthStatusLabel(source)}
+        </span>
+      </div>
+
+      {hasSnapshot ? (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {metrics.map((metric) => (
+              <MetricBox key={`${source.entityKey}-${metric.label}`} label={metric.label} value={metric.value} />
+            ))}
+          </div>
+          {source.source === "skool" ? (
+            <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+              Members are live. Conversion, retention, and MRR land via manual weekly snapshots.
+            </p>
+          ) : null}
+          <div className="mt-3">
+            <Sparkline values={values} compact tone={growthTrendTone(source)} />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {delta.delta7d != null ? (
+              <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+                {formatGrowthDelta(delta.delta7d)} / 7d
+              </span>
+            ) : null}
+            {delta.delta30d != null ? (
+              <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+                {formatGrowthDelta(delta.delta30d)} / 30d
+              </span>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="mt-3 rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-3">
+          <p className="text-sm font-medium text-white">{pending.label}</p>
+          <p className="mt-1 text-sm text-neutral-500">{pending.detail}</p>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+        <span>{growthCollectorLabel(source)}</span>
+        <span>{source.capturedAt ? formatTimeAgo(source.capturedAt) : "awaiting snapshot"}</span>
+      </div>
+    </div>
+  );
+}
+
+function Sparkline({ values, compact = false, tone = "#FF7D45" }: { values: number[]; compact?: boolean; tone?: string }) {
   if (!values.length) {
-    return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3 text-sm text-neutral-500">No trend data yet.</div>;
+    return <div className={cx("rounded-[18px] border border-white/[0.06] bg-black/20 text-neutral-500", compact ? "p-2 text-xs" : "p-3 text-sm")}>No trend data yet.</div>;
   }
 
   const max = Math.max(...values, 1);
@@ -995,10 +1524,10 @@ function Sparkline({ values }: { values: number[] }) {
     .join(" ");
 
   return (
-    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
-      <svg viewBox="0 0 100 100" className="h-16 w-full overflow-visible" preserveAspectRatio="none">
+    <div className={cx("rounded-[18px] border border-white/[0.06] bg-black/20", compact ? "p-2" : "p-3")}>
+      <svg viewBox="0 0 100 100" className={cx("w-full overflow-visible", compact ? "h-12" : "h-16")} preserveAspectRatio="none">
         <polyline fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" points="0,100 100,100" />
-        <polyline fill="none" stroke="#FF7D45" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={points} />
+        <polyline fill="none" stroke={tone} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={points} />
       </svg>
     </div>
   );
@@ -1022,3 +1551,4 @@ function RobotIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill=
 function NotebookIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h5" /></svg>; }
 function ChartIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19h16" /><path d="M7 16V9" /><path d="M12 16V5" /><path d="M17 16v-4" /></svg>; }
 function OrbitMiniIcon() { return <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" /><path d="M4 12c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8-8-3.6-8-8Z" /></svg>; }
+

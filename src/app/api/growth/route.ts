@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { type GrowthFreshness, type GrowthResponse, type GrowthSourceName, type GrowthSourceSummary } from "@/lib/dashboard";
+import { type GrowthDailyPoint, type GrowthFreshness, type GrowthResponse, type GrowthSourceName, type GrowthSourceSummary } from "@/lib/dashboard";
 
 export const revalidate = 900;
 
@@ -73,6 +73,12 @@ function mapFreshness(value: string | null): GrowthFreshness {
   }
 }
 
+function formatDateFilter(daysBack: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - daysBack);
+  return date.toISOString().slice(0, 10);
+}
+
 function withFallbackDelta(row: RawGrowthRow, metric: string, days: "7d" | "30d") {
   return pickNumber(row, [
     `${metric}_delta_${days}`,
@@ -82,7 +88,19 @@ function withFallbackDelta(row: RawGrowthRow, metric: string, days: "7d" | "30d"
   ]);
 }
 
-function mapRow(row: RawGrowthRow): GrowthSourceSummary {
+function mapDailyPoint(row: RawGrowthRow): GrowthDailyPoint {
+  return {
+    day: pickString(row, ["day"]) || "",
+    members: pickNumber(row, ["members"]),
+    freeSubscribers: pickNumber(row, ["free_subscribers", "freeSubscribers"]),
+    paidSubscribers: pickNumber(row, ["paid_subscribers", "paidSubscribers"]),
+    followers: pickNumber(row, ["followers"]),
+    mrr: pickNumber(row, ["mrr"]),
+    arr: pickNumber(row, ["arr"]),
+  };
+}
+
+function mapRow(row: RawGrowthRow, daily: GrowthDailyPoint[]): GrowthSourceSummary {
   return {
     entityKey: pickString(row, ["entity_key", "entityKey"]) || "unknown-source",
     source: mapSource(pickString(row, ["source"])),
@@ -118,6 +136,7 @@ function mapRow(row: RawGrowthRow): GrowthSourceSummary {
       mrr: withFallbackDelta(row, "mrr", "30d"),
       arr: withFallbackDelta(row, "arr", "30d"),
     },
+    daily,
   };
 }
 
@@ -146,20 +165,35 @@ export async function GET() {
   }
 
   try {
-    const url = new URL(`${SUPABASE_URL}/rest/v1/growth_overview_view`);
-    url.searchParams.set("select", "*");
-    url.searchParams.set("order", "venture.asc,source.asc,label.asc");
+    const overviewUrl = new URL(`${SUPABASE_URL}/rest/v1/growth_overview_view`);
+    overviewUrl.searchParams.set("select", "*");
+    overviewUrl.searchParams.set("order", "venture.asc,source.asc,label.asc");
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 900 },
-    });
+    const dailyUrl = new URL(`${SUPABASE_URL}/rest/v1/growth_daily_view`);
+    dailyUrl.searchParams.set("select", "*");
+    dailyUrl.searchParams.set("day", `gte.${formatDateFilter(30)}`);
+    dailyUrl.searchParams.set("order", "entity_key.asc,day.asc");
 
-    if (!response.ok) {
+    const [overviewResponse, dailyResponse] = await Promise.all([
+      fetch(overviewUrl.toString(), {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 900 },
+      }),
+      fetch(dailyUrl.toString(), {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 900 },
+      }),
+    ]);
+
+    if (!overviewResponse.ok || !dailyResponse.ok) {
       return NextResponse.json<GrowthResponse>({
         sources: [],
         summary: {
@@ -172,13 +206,29 @@ export async function GET() {
           totalPaidSubscribers: null,
           totalMRR: null,
         },
-        error: `Supabase ${response.status}`,
+        error: `Supabase ${overviewResponse.ok ? dailyResponse.status : overviewResponse.status}`,
         fetchedAt: new Date().toISOString(),
       });
     }
 
-    const rows: RawGrowthRow[] = await response.json();
-    const sources = rows.map(mapRow);
+    const [overviewRows, dailyRows]: [RawGrowthRow[], RawGrowthRow[]] = await Promise.all([
+      overviewResponse.json(),
+      dailyResponse.json(),
+    ]);
+
+    const dailyBySource = dailyRows.reduce<Record<string, GrowthDailyPoint[]>>((acc, row) => {
+      const entityKey = pickString(row, ["entity_key", "entityKey"]);
+      if (!entityKey) {
+        return acc;
+      }
+      (acc[entityKey] ||= []).push(mapDailyPoint(row));
+      return acc;
+    }, {});
+
+    const sources = overviewRows.map((row) => {
+      const entityKey = pickString(row, ["entity_key", "entityKey"]) || "unknown-source";
+      return mapRow(row, dailyBySource[entityKey] || []);
+    });
 
     return NextResponse.json<GrowthResponse>({
       sources,

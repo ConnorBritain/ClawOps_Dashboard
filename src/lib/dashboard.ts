@@ -212,6 +212,16 @@ export interface SeasonMatrixResponse {
 export type GrowthSourceName = "skool" | "substack" | "beehiiv" | "manual";
 export type GrowthFreshness = "fresh" | "stale" | "expired" | "no_data";
 
+export interface GrowthDailyPoint {
+  day: string;
+  members: number | null;
+  freeSubscribers: number | null;
+  paidSubscribers: number | null;
+  followers: number | null;
+  mrr: number | null;
+  arr: number | null;
+}
+
 export interface GrowthSourceSummary {
   entityKey: string;
   source: GrowthSourceName;
@@ -247,6 +257,7 @@ export interface GrowthSourceSummary {
     mrr: number | null;
     arr: number | null;
   };
+  daily: GrowthDailyPoint[];
 }
 
 export interface GrowthResponse {
