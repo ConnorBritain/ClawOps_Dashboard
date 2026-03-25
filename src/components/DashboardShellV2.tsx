@@ -29,6 +29,8 @@ import {
 import { SEASONS, SEASON_PATTERNS } from "@/lib/seasons";
 import {
   formatAge,
+  getCentralDateParts,
+  getCentralWeekStart,
   formatCentralDateTime,
   formatTimeAgo,
   formatTimeUntil,
@@ -109,6 +111,39 @@ function cronState(job: CronJobSummary) {
   return ["#4ADE80", "Healthy"] as const;
 }
 
+function getNextCron(cron: CronResponse | null) {
+  return [...(cron?.jobs || [])]
+    .filter((job) => job.nextRunAt)
+    .sort((left, right) => new Date(left.nextRunAt as string).getTime() - new Date(right.nextRunAt as string).getTime())[0];
+}
+
+function currentWeekProgress() {
+  const parts = getCentralDateParts(new Date());
+  const dayOrder: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  const dayIndex = dayOrder[parts.weekday] ?? 0;
+  const fraction = (dayIndex + parts.hour / 24 + parts.minute / 1440) / 7;
+  return Math.max(0.16, Math.min(fraction, 1));
+}
+
+function buildAttentionSignal(data: DashboardData, work: WorkResponse) {
+  const highPriority = work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length;
+  const cronErrors = data.cron?.summary.errors || 0;
+
+  if (cronErrors > 0) {
+    return { label: `${cronErrors} cron issue${cronErrors === 1 ? "" : "s"}`, detail: "Reliability needs attention", tone: "#F87171" };
+  }
+
+  if (!data.postiz?.summary?.nextScheduled) {
+    return { label: "No post queued", detail: "Publishing runway is empty", tone: "#FBBF24" };
+  }
+
+  if (highPriority > 0) {
+    return { label: `${highPriority} high-priority`, detail: "Open item needs a decision", tone: "#FBBF24" };
+  }
+
+  return { label: "Clear deck", detail: "No immediate operational risk", tone: "#4ADE80" };
+}
+
 export default function DashboardShellV2() {
   const { refreshKey } = useRefresh();
   const router = useRouter();
@@ -180,7 +215,7 @@ export default function DashboardShellV2() {
 
       <div className="hidden gap-4 lg:grid lg:grid-cols-12">
         <div className="col-span-7"><SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} /></div>
-        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={workData} compact /></div>
+        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
         <div className="col-span-5"><ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} /></div>
       </div>
@@ -219,10 +254,12 @@ function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, age
   if (tab === "season") return <SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
   if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} showHeader={false} />;
-  return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} compact={false} />;
+  return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact={false} />;
 }
 
 function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: WorkResponse }) {
+  const nextCron = getNextCron(data.cron);
+  const attention = buildAttentionSignal(data, work);
   return (
     <header className="card surface-strong mb-5 p-5">
       <div className="flex items-start justify-between gap-4">
@@ -240,10 +277,10 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <HeaderMetric label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} tone="#FF7D45" />
-        <HeaderMetric label="Open work" value={String(work.total)} tone="#DC97FF" />
-        <HeaderMetric label="Beacon thoughts" value={data.beacon ? String(data.beacon.totalThoughts) : "--"} tone="#60A5FA" />
-        <HeaderMetric label="Cron source" value={data.cron?.source || "--"} tone={data.cron?.source === "supabase" ? "#4ADE80" : "#FBBF24"} />
+        <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
+        <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
+        <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
+        <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -259,9 +296,8 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
 }
 
 function MobileOverviewSection({ loading, data, work }: { loading: boolean; data: DashboardData; work: WorkResponse }) {
-  const nextCron = [...(data.cron?.jobs || [])]
-    .filter((job) => job.nextRunAt)
-    .sort((left, right) => new Date(left.nextRunAt as string).getTime() - new Date(right.nextRunAt as string).getTime())[0];
+  const nextCron = getNextCron(data.cron);
+  const attention = buildAttentionSignal(data, work);
 
   if (loading) {
     return (
@@ -293,27 +329,10 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <HeaderMetric label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} tone="#FF7D45" />
-          <HeaderMetric label="Open work" value={String(work.total)} tone="#DC97FF" />
-          <HeaderMetric label="Beacon thoughts" value={data.beacon ? String(data.beacon.totalThoughts) : "--"} tone="#60A5FA" />
-          <HeaderMetric label="Cron source" value={data.cron?.source || "--"} tone={data.cron?.source === "supabase" ? "#4ADE80" : "#FBBF24"} />
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <OverviewMiniCard
-            label="Next cron"
-            value={nextCron ? nextCron.name : "No schedule"}
-            detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"}
-          />
-          <OverviewMiniCard
-            label="Next post"
-            value={data.postiz?.summary?.nextScheduled?.channel || "Nothing queued"}
-            detail={
-              data.postiz?.summary?.nextScheduled?.scheduledDate
-                ? formatCentralDateTime(data.postiz.summary.nextScheduled.scheduledDate)
-                : "Postiz quiet"
-            }
-          />
+          <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
+          <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
+          <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
+          <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -335,6 +354,16 @@ function OverviewMiniCard({ label, value, detail }: { label: string; value: stri
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
       <p className="mt-2 text-sm font-medium text-white">{value}</p>
       <p className="mt-1 text-xs leading-relaxed text-neutral-500">{detail}</p>
+    </div>
+  );
+}
+
+function HeroSignalCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }) {
+  return (
+    <div className="surface-soft rounded-[22px] px-3 py-3">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
+      <p className="mt-3 text-[1.95rem] font-semibold leading-[0.92]" style={{ color: tone }}>{value}</p>
+      <p className="mt-2 text-xs leading-relaxed text-neutral-500">{detail}</p>
     </div>
   );
 }
@@ -671,32 +700,194 @@ function ContentSection({
   );
 }
 
-function MetricsSection({ loading, spend, beacon, cron, postiz, work, compact }: { loading: boolean; spend: SpendResponse | null; beacon: BeaconResponse | null; cron: CronResponse | null; postiz: PostizResponse | null; work: WorkResponse; compact: boolean }) {
+function MetricsSection({
+  loading,
+  spend,
+  beacon,
+  cron,
+  postiz,
+  work,
+  content,
+  season,
+  seasonMatrix,
+}: {
+  loading: boolean;
+  spend: SpendResponse | null;
+  beacon: BeaconResponse | null;
+  cron: CronResponse | null;
+  postiz: PostizResponse | null;
+  work: WorkResponse;
+  content: ContentPipelineResponse | null;
+  season: SeasonResponse | null;
+  seasonMatrix: SeasonMatrixResponse | null;
+  compact: boolean;
+}) {
   if (loading) return <SectionCard title="Metrics" subtitle="Business pulse"><SkeletonRows rows={5} /></SectionCard>;
-  const cards = [
-    ["OpenRouter", spend ? formatCurrency(spend.totals.weekly) : "--", spend ? `${formatCurrency(spend.totals.daily)} today - ${formatCurrency(spend.totals.monthly)} month` : "Spend feed unavailable", "#FF7D45"],
-    ["Beacon", beacon ? String(beacon.totalThoughts) : "--", beacon ? `${beacon.thisWeekThoughts} thoughts this week` : "Beacon feed unavailable", "#DC97FF"],
-    ["Scheduled", postiz?.summary ? String(postiz.summary.scheduledThisWeek) : "--", "Postiz posts queued this week", "#60A5FA"],
-    ["Published", postiz?.summary ? String(postiz.summary.publishedThisWeek) : "--", cron?.summary.errors ? `${cron.summary.errors} cron issues` : "Crons stable", cron?.summary.errors ? "#F87171" : "#4ADE80"],
-  ] as const;
+
+  const weekStartMs = getCentralWeekStart().getTime();
+  const weekProgress = currentWeekProgress();
+  const projectedWeeklySpend = spend ? spend.totals.weekly / weekProgress : null;
+  const spendTrend = spend?.trend?.slice(-14) || [];
+  const topSpenders = [...(spend?.agents || [])].sort((left, right) => right.weekly - left.weekly).slice(0, 3);
+
+  const touchedThisWeek = (content?.items || []).filter((item) => new Date(item.updatedAt).getTime() >= weekStartMs);
+  const touchedByStatus = touchedThisWeek.reduce<Record<string, number>>((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const currentSeason = season?.season.number || 1;
+  const seasonSlots = (seasonMatrix?.slots || []).filter((slot) => slot.season === currentSeason);
+  const ventureCoverage = MATRIX_VENTURES.map((venture) => {
+    const slots = seasonSlots.filter((slot) => slot.venture === venture);
+    const started = slots.filter((slot) => slot.status !== "not_started").length;
+    return { venture, total: slots.length, started };
+  }).filter((entry) => entry.total > 0);
+
+  const beaconPerItem = touchedThisWeek.length ? Math.round((beacon?.thisWeekThoughts || 0) / touchedThisWeek.length) : null;
+  const overdueCrons = (cron?.jobs || []).filter((job) => job.nextRunAt && new Date(job.nextRunAt).getTime() < Date.now() - 900000).length;
+  const oldestItem = [...work.items].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())[0];
+  const highPriority = work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length;
 
   return (
     <SectionCard title="Metrics" subtitle="Business pulse">
       <div className="space-y-4">
-        <div className={`grid gap-3 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>{cards.map(([label, value, detail, tone]) => <div key={label} className="surface-soft rounded-[24px] p-4"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-3 text-2xl font-semibold" style={{ color: tone }}>{value}</p><p className="mt-2 text-xs leading-relaxed text-neutral-500">{detail}</p></div>)}</div>
         <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Postiz</p><p className="mt-1 text-base font-medium text-white">Publishing activity</p></div><span className="w-fit rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{postiz?.total || 0} posts</span></div>
-          {postiz?.summary ? <><div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><MetricBox label="Scheduled" value={String(postiz.summary.scheduledThisWeek)} /><MetricBox label="Published" value={String(postiz.summary.publishedThisWeek)} /><div className="col-span-2 sm:col-span-1"><MetricBox label="Drafts" value={String(postiz.summary.draftCount)} /></div></div><div className="mt-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next scheduled</p><p className="mt-1 text-sm font-medium text-white">{postiz.summary.nextScheduled ? `${formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)} - ${postiz.summary.nextScheduled.channel}` : "No scheduled post this week"}</p></div></> : <p className="text-sm text-neutral-500">Postiz feed unavailable right now.</p>}
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Spend pace</p>
+              <p className="mt-1 text-base font-medium text-white">Burn rate and projection</p>
+            </div>
+            <p className="text-sm text-neutral-500">{spendTrend.length ? `${spendTrend.length} day trend` : "Trend unavailable"}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricBox label="This week" value={spend ? formatCurrency(spend.totals.weekly) : "--"} />
+            <MetricBox label="Projected" value={projectedWeeklySpend ? formatCurrency(projectedWeeklySpend) : "--"} />
+            <MetricBox label="Avg / day" value={spend ? formatCurrency(spend.totals.weekly / Math.max(1, weekProgress * 7)) : "--"} />
+          </div>
+          <div className="mt-4">
+            <Sparkline values={spendTrend.map((entry) => entry.total)} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+            {topSpenders.length ? topSpenders.map((agent) => (
+              <span key={agent.id} className="rounded-full border border-white/[0.08] px-2.5 py-1">
+                {agent.name} {formatCurrency(agent.weekly)}
+              </span>
+            )) : <span>No spend data by agent</span>}
+          </div>
         </div>
-        <WorkQueuePanel work={work} />
+
+        <div className="surface-soft rounded-[24px] p-4">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Production pace</p>
+              <p className="mt-1 text-base font-medium text-white">Output, runway, and shipping velocity</p>
+            </div>
+            <p className="text-sm text-neutral-500">{touchedThisWeek.length} item{touchedThisWeek.length === 1 ? "" : "s"} moved this week</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <MetricBox label="Drafted" value={String(touchedByStatus.drafted || 0)} />
+            <MetricBox label="Review" value={String(touchedByStatus.review || 0)} />
+            <MetricBox label="Scheduled" value={String(postiz?.summary?.scheduledThisWeek || 0)} />
+            <MetricBox label="Published" value={String(postiz?.summary?.publishedThisWeek || 0)} />
+          </div>
+          <div className="mt-4 space-y-2">
+            {ventureCoverage.length ? ventureCoverage.map((entry) => (
+              <div key={entry.venture} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+                  <span className={`rounded-full border px-2 py-0.5 uppercase tracking-[0.14em] ${getVentureClasses(entry.venture)}`}>{entry.venture}</span>
+                  <span className="text-neutral-500">{entry.started}/{entry.total} started</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className="h-full rounded-full bg-[#FF7D45]" style={{ width: `${entry.total ? (entry.started / entry.total) * 100 : 0}%` }} />
+                </div>
+              </div>
+            )) : <p className="text-sm text-neutral-500">No season blueprint coverage yet.</p>}
+          </div>
+        </div>
+
+        <div className="surface-soft rounded-[24px] p-4">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Cognition vs output</p>
+              <p className="mt-1 text-base font-medium text-white">Beacon pace relative to shipping</p>
+            </div>
+            <p className="text-sm text-neutral-500">{beacon?.thisWeekThoughts || 0} thoughts this week</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricBox label="Beacon" value={String(beacon?.thisWeekThoughts || 0)} />
+            <MetricBox label="Items moved" value={String(touchedThisWeek.length)} />
+            <MetricBox label="Thoughts / item" value={beaconPerItem != null ? String(beaconPerItem) : "--"} />
+          </div>
+          <div className="mt-4 rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Read</p>
+            <p className="mt-1 text-sm font-medium text-white">
+              {touchedThisWeek.length
+                ? `${beaconPerItem} Beacon thought${beaconPerItem === 1 ? "" : "s"} per item moved this week.`
+                : "Beacon is active, but nothing has moved through the pipeline yet this week."}
+            </p>
+          </div>
+        </div>
+
+        <div className="surface-soft rounded-[24px] p-4">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Operational health</p>
+              <p className="mt-1 text-base font-medium text-white">Risk, queue age, and cron reliability</p>
+            </div>
+            <p className="text-sm text-neutral-500">{work.total} open item{work.total === 1 ? "" : "s"}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricBox label="Cron errors" value={String(cron?.summary.errors || 0)} />
+            <MetricBox label="Overdue crons" value={String(overdueCrons)} />
+            <MetricBox label="High priority" value={String(highPriority)} />
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Oldest open item</p>
+              <p className="mt-1 text-sm font-medium text-white">{oldestItem?.title || "No active work"}</p>
+              <p className="mt-2 text-xs text-neutral-500">{oldestItem ? `Age ${formatAge(oldestItem.createdAt)}` : "Queue is clear"}</p>
+            </div>
+            <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next publish</p>
+              <p className="mt-1 text-sm font-medium text-white">
+                {postiz?.summary?.nextScheduled ? `${postiz.summary.nextScheduled.channel}` : "Nothing queued"}
+              </p>
+              <p className="mt-2 text-xs text-neutral-500">
+                {postiz?.summary?.nextScheduled?.scheduledDate
+                  ? formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)
+                  : "Publishing runway is empty"}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </SectionCard>
   );
 }
 
-function WorkQueuePanel({ work }: { work: WorkResponse }) {
-  const ordered = Object.entries(work.byAgent).sort(([a], [b]) => a.localeCompare(b));
-  return <div className="surface-soft rounded-[24px] p-4"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Work queue</p><p className="mt-1 text-base font-medium text-white">Active items grouped by agent</p></div><span className="w-fit rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{work.total} open</span></div>{ordered.length ? <div className="space-y-3">{ordered.map(([agentId, items]) => <div key={agentId} className="rounded-[22px] border border-white/[0.06] bg-black/20 p-3"><div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-medium text-white">{AGENTS.find((agent) => agent.id === agentId)?.name || agentId}</p><span className="text-xs text-neutral-500">{items.length} item{items.length === 1 ? "" : "s"}</span></div><div className="space-y-2">{items.map((item) => <WorkItemRow key={item.id} item={item} />)}</div></div>)}</div> : <p className="text-sm text-neutral-500">No active work items in Beacon right now.</p>}</div>;
+function Sparkline({ values }: { values: number[] }) {
+  if (!values.length) {
+    return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3 text-sm text-neutral-500">No trend data yet.</div>;
+  }
+
+  const max = Math.max(...values, 1);
+  const points = values
+    .map((value, index) => {
+      const x = (index / Math.max(values.length - 1, 1)) * 100;
+      const y = 100 - (value / max) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+      <svg viewBox="0 0 100 100" className="h-16 w-full overflow-visible" preserveAspectRatio="none">
+        <polyline fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" points="0,100 100,100" />
+        <polyline fill="none" stroke="#FF7D45" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={points} />
+      </svg>
+    </div>
+  );
 }
 
 function WorkItemRow({ item }: { item: WorkItem }) {
