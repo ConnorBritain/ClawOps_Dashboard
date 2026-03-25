@@ -48,24 +48,38 @@ interface StaticCronDefinition {
 }
 
 const STATIC_CRON_DEFINITIONS: StaticCronDefinition[] = [
-  { id: "dahlia-morning", agentId: "dahlia", name: "Morning Orchestrator", expr: "30 6 * * 1-5" },
-  { id: "dahlia-weekly-check", agentId: "dahlia", name: "Weekly Content Check", expr: "0 9 * * 1" },
-  { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", expr: "0 21 * * 1-5" },
-  { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", expr: "0 19 * * 0" },
-  { id: "enzo-monday", agentId: "enzo", name: "Monday Check-in", expr: "0 7 * * 1" },
-  { id: "enzo-thursday", agentId: "enzo", name: "Thursday Pulse", expr: "0 12 * * 4" },
-  { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Queue Check", expr: "0 8 * * 1-5" },
-  { id: "cyrus-g2l-work", agentId: "cyrus-g2l", name: "Work Queue Check", expr: "0 8 * * 1-5" },
-  { id: "cyrus-pidgeon-work", agentId: "cyrus-pidgeon", name: "Work Queue Check", expr: "0 8 * * 1-5" },
-  { id: "echo-pe-weekly", agentId: "echo-pe", name: "Weekly Content Plan", expr: "0 10 * * 1" },
-  { id: "echo-pe-midweek", agentId: "echo-pe", name: "Mid-week Check", expr: "0 10 * * 3" },
-  { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents Newsletter", expr: "0 9 * * 2" },
-  { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Lab Plan", expr: "30 10 * * 1" },
-  { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", expr: "0 15 * * 5" },
-  { id: "haven-daily", agentId: "haven", name: "Daily Household Sweep", expr: "0 7 * * *" },
-  { id: "haven-sunday", agentId: "haven", name: "Sunday Family Review", expr: "0 19 * * 0" },
-  { id: "atlas-monday", agentId: "atlas", name: "Weekly Navigation Review", expr: "0 6 * * 1" },
-  { id: "atlas-thursday", agentId: "atlas", name: "Thursday Course Correct", expr: "0 20 * * 4" },
+  { id: "cyrus-pattern-morning-planning", agentId: "cyrus-pe", name: "Morning Planning", expr: "0 7 * * 1-5" },
+  { id: "cyrus-pattern-end-of-day-report", agentId: "cyrus-pe", name: "End-of-day Report", expr: "0 22 * * *" },
+  { id: "cyrus-pattern-weekly-dependency-check", agentId: "cyrus-pe", name: "Weekly Dependency Check", expr: "0 10 * * 1" },
+  { id: "cyrus-pidgeon-morning-planning", agentId: "cyrus-pidgeon", name: "Morning Planning", expr: "0 7 * * 1-5" },
+  { id: "cyrus-pidgeon-end-of-day-report", agentId: "cyrus-pidgeon", name: "End-of-day Report", expr: "0 22 * * *" },
+  { id: "cyrus-pidgeon-weekly-dependency-check", agentId: "cyrus-pidgeon", name: "Weekly Dependency Check", expr: "0 10 * * 1" },
+  { id: "cyrus-g2l-morning-planning", agentId: "cyrus-g2l", name: "Morning Planning", expr: "0 7 * * 1-5" },
+  { id: "cyrus-g2l-end-of-day-report", agentId: "cyrus-g2l", name: "End-of-day Report", expr: "0 22 * * *" },
+  { id: "cyrus-g2l-weekly-dependency-check", agentId: "cyrus-g2l", name: "Weekly Dependency Check", expr: "0 10 * * 1" },
+  { id: "cyrus-g2l-skool-stats", agentId: "cyrus-g2l", name: "Skool Stats", expr: "0 8,18 * * *" },
+  { id: "echo-pattern-monday-content-planning", agentId: "echo-pe", name: "Monday Content Planning", expr: "0 8 * * 1" },
+  { id: "echo-pattern-daily-content-check", agentId: "echo-pe", name: "Daily Content Check", expr: "0 9 * * 1-5" },
+  { id: "echo-pattern-performance-review", agentId: "echo-pe", name: "Performance Review", expr: "0 16 * * 5" },
+  { id: "echo-pattern-stale-draft-check", agentId: "echo-pe", name: "Stale Draft Check", expr: "0 14 * * 3" },
+  { id: "echo-pidgeon-monday-content-planning", agentId: "echo-pidgeon", name: "Monday Content Planning", expr: "0 8 * * 1" },
+  { id: "echo-pidgeon-daily-content-check", agentId: "echo-pidgeon", name: "Daily Content Check", expr: "0 9 * * 1-5" },
+  { id: "echo-pidgeon-performance-review", agentId: "echo-pidgeon", name: "Performance Review", expr: "0 16 * * 5" },
+  { id: "echo-pidgeon-stale-draft-check", agentId: "echo-pidgeon", name: "Stale Draft Check", expr: "0 14 * * 3" },
+  { id: "echo-g2l-monday-content-planning", agentId: "echo-g2l", name: "Monday Content Planning", expr: "0 8 * * 1" },
+  { id: "echo-g2l-daily-content-check", agentId: "echo-g2l", name: "Daily Content Check", expr: "0 9 * * 1-5" },
+  { id: "echo-g2l-performance-review", agentId: "echo-g2l", name: "Performance Review", expr: "0 16 * * 5" },
+  { id: "echo-g2l-stale-draft-check", agentId: "echo-g2l", name: "Stale Draft Check", expr: "0 14 * * 3" },
+  { id: "dahlia-morning-brief", agentId: "dahlia", name: "Morning Brief", expr: "0 7 * * *" },
+  { id: "dahlia-weekly-priority-review", agentId: "dahlia", name: "Weekly Priority Review", expr: "0 9 * * 1" },
+  { id: "dahlia-sunday-relationship-check", agentId: "dahlia", name: "Sunday Relationship Check", expr: "0 18 * * 0" },
+  { id: "dahlia-weekly-synthesis", agentId: "dahlia", name: "Weekly Synthesis", expr: "0 19 * * 0" },
+  { id: "enzo-daily-check-in", agentId: "enzo", name: "Daily Check-in", expr: "0 7 * * *" },
+  { id: "enzo-monday-time-block-rebuild", agentId: "enzo", name: "Monday Time-block Rebuild", expr: "0 8 * * 1" },
+  { id: "enzo-midday-habit-check", agentId: "enzo", name: "Midday Habit Check", expr: "0 12 * * 1-5" },
+  { id: "enzo-end-of-day-review", agentId: "enzo", name: "End-of-day Review", expr: "0 21 * * *" },
+  { id: "enzo-weekly-review", agentId: "enzo", name: "Weekly Review", expr: "0 18 * * 5" },
+  { id: "enzo-monthly-retrospective", agentId: "enzo", name: "Monthly Retrospective", expr: "0 10 1 * *" },
 ];
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -129,10 +143,8 @@ function zonedTimeToUtc(
   return new Date(utcGuess - secondPassOffset * 60000);
 }
 
-function isUuidLike(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
+function normalizeCronKey(value: string) {
+  return value.trim().toLowerCase().replace(/[_\s]+/g, "-");
 }
 
 function parseNumberSet(value: string): number[] | null {
@@ -278,9 +290,20 @@ function formatCronExpression(expr: string) {
   return `${timeLabel} ${dayLabel}`;
 }
 
-function findKnownCron(agentId: string, id: string, expr?: string) {
+function findKnownCron(agentId: string, id: string, name?: string, expr?: string) {
+  const candidates = [id, name]
+    .filter((value): value is string => Boolean(value))
+    .map(normalizeCronKey);
+
   return STATIC_CRON_DEFINITIONS.find((job) => {
-    if (job.id === id) {
+    if (
+      job.agentId === agentId &&
+      candidates.some(
+        (candidate) =>
+          candidate === normalizeCronKey(job.id) ||
+          candidate === normalizeCronKey(job.name)
+      )
+    ) {
       return true;
     }
 
@@ -288,18 +311,17 @@ function findKnownCron(agentId: string, id: string, expr?: string) {
   });
 }
 
-function buildCronSummary(job: CronJob): CronSummary {
+function buildCronSummary(job: CronJob): CronSummary | null {
   const expr = job.schedule.kind === "cron" ? job.schedule.expr : undefined;
-  const known = findKnownCron(job.agentId, job.id, expr);
-  const displayName =
-    job.name && !isUuidLike(job.name)
-      ? job.name
-      : known?.name || (isUuidLike(job.id) ? "Scheduled job" : job.id);
+  const known = findKnownCron(job.agentId, job.id, job.name, expr);
+  if (!known) {
+    return null;
+  }
 
   return {
-    id: known?.id || job.id,
+    id: known.id,
     agentId: job.agentId,
-    name: displayName,
+    name: known.name,
     enabled: job.enabled,
     schedule: expr ? formatCronExpression(expr) : job.schedule.kind,
     lastRunAt: formatTimestamp(job.state?.lastRunAtMs),
@@ -346,7 +368,9 @@ export async function GET() {
     if (res.ok) {
       const data = await res.json();
       const jobs: CronJob[] = Array.isArray(data.jobs) ? data.jobs : [];
-      const summary = jobs.map(buildCronSummary);
+      const summary = jobs
+        .map(buildCronSummary)
+        .filter((job): job is CronSummary => Boolean(job));
 
       return NextResponse.json({
         ...buildResponse(summary),
@@ -375,24 +399,37 @@ export async function GET() {
         const snapRows = await snapRes.json();
         if (snapRows?.[0]?.data?.jobs) {
           const snapshotJobs = snapRows[0].data.jobs as Array<Record<string, unknown>>;
-          const mapped: CronSummary[] = snapshotJobs.map((j) => {
-            const expr = String(j.schedule || "");
-            const known = STATIC_CRON_DEFINITIONS.find(
-              (d) => d.agentId === j.agent && d.expr === expr
-            );
-            return {
-              id: known?.id || String(j.name),
-              agentId: String(j.agent),
-              name: known?.name || String(j.name).replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-              enabled: j.enabled !== false,
-              schedule: expr ? formatCronExpression(expr) : "unknown",
-              lastRunAt: j.lastRunAt ? new Date(Number(j.lastRunAt)).toISOString() : null,
-              lastStatus: j.lastStatus === "never" ? null : String(j.lastStatus || ""),
-              nextRunAt: j.nextRunAt ? new Date(Number(j.nextRunAt)).toISOString() : (expr ? getNextRunAt(expr) : null),
-              lastDurationMs: j.lastDuration ? Number(j.lastDuration) : null,
-              consecutiveErrors: Number(j.errors || 0),
-            };
-          });
+          const mapped = snapshotJobs
+            .map((j): CronSummary | null => {
+              const expr = String(j.schedule || "");
+              const agentId = String(j.agent || "");
+              const rawName = String(j.name || "");
+              const known = findKnownCron(agentId, rawName, rawName, expr);
+              if (!known) {
+                return null;
+              }
+
+              return {
+                id: known.id,
+                agentId,
+                name: known.name,
+                enabled: j.enabled !== false,
+                schedule: expr ? formatCronExpression(expr) : "unknown",
+                lastRunAt: j.lastRunAt
+                  ? new Date(Number(j.lastRunAt)).toISOString()
+                  : null,
+                lastStatus: j.lastStatus === "never" ? null : String(j.lastStatus || ""),
+                nextRunAt: j.nextRunAt
+                  ? new Date(Number(j.nextRunAt)).toISOString()
+                  : expr
+                    ? getNextRunAt(expr)
+                    : null,
+                lastDurationMs: j.lastDuration ? Number(j.lastDuration) : null,
+                consecutiveErrors: Number(j.errors || 0),
+              };
+            })
+            .filter((job): job is CronSummary => Boolean(job));
+
           return NextResponse.json({
             ...buildResponse(mapped),
             source: "supabase",
