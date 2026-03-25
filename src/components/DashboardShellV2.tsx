@@ -144,6 +144,23 @@ function buildAttentionSignal(data: DashboardData, work: WorkResponse) {
   return { label: "Clear deck", detail: "No immediate operational risk", tone: "#4ADE80" };
 }
 
+function buildSystemHealth(data: DashboardData) {
+  const cronErrors = data.cron?.summary.errors || 0;
+  if (cronErrors > 0) {
+    return { label: "Cron warning", detail: `${cronErrors} cron issue${cronErrors === 1 ? "" : "s"} reported` };
+  }
+
+  if (data.cron?.source === "supabase") {
+    return { label: "Stable", detail: "Live cron snapshot flowing" };
+  }
+
+  if (data.cron?.source) {
+    return { label: "Fallback", detail: `${data.cron.source} telemetry in use` };
+  }
+
+  return { label: "Unknown", detail: "Telemetry source unavailable" };
+}
+
 export default function DashboardShellV2() {
   const { refreshKey } = useRefresh();
   const router = useRouter();
@@ -228,21 +245,19 @@ export default function DashboardShellV2() {
 
       <main className="lg:hidden">
         <div className="h-[100dvh] overflow-hidden px-4 pt-4">
-          <div className="h-[calc(100dvh-env(safe-area-inset-bottom))] overflow-hidden">
-            <div className="h-[calc(100dvh-88px-env(safe-area-inset-bottom))] overflow-y-auto pb-6">
-              {mobileTab === "dashboard" ? (
-                <div className="dashboard-fade pb-5">
-                  <MobileOverviewSection loading={loading} data={data} work={workData} />
-                </div>
-              ) : (
-                <div className="dashboard-fade pb-5">
-                  <TabHeading activeTab={mobileTab} />
-                  {renderTab(mobileTab, loading, data, agentSnapshots, workData)}
-                </div>
-              )}
-            </div>
-            <MobileTabBar activeTab={mobileTab} onChange={handleTabChange} />
+          <div className="h-full overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+104px)]">
+            {mobileTab === "dashboard" ? (
+              <div className="dashboard-fade pb-5">
+                <MobileOverviewSection loading={loading} data={data} work={workData} />
+              </div>
+            ) : (
+              <div className="dashboard-fade pb-5">
+                <TabHeading activeTab={mobileTab} />
+                {renderTab(mobileTab, loading, data, agentSnapshots, workData)}
+              </div>
+            )}
           </div>
+          <MobileTabBar activeTab={mobileTab} onChange={handleTabChange} />
         </div>
       </main>
     </>
@@ -260,30 +275,46 @@ function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, age
 function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: WorkResponse }) {
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
+  const nextPost = data.postiz?.summary?.nextScheduled;
+  const systemHealth = buildSystemHealth(data);
   return (
-    <header className="card surface-strong mb-5 p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5">
-            <Image src="/clawops-logo.png" alt="ClawOps" width={44} height={44} className="rounded-xl" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFB28F]">Pattern Engine Ops</p>
-            <h1 className="mt-1 text-2xl font-semibold text-white">ClawOps Dashboard</h1>
-            <p className="mt-1 max-w-xl text-sm text-neutral-400">Dark, dense, coffee-check-ready command view for the fleet.</p>
-          </div>
-        </div>
+    <header className="card surface-strong relative mb-5 overflow-hidden p-5">
+      <div className="absolute right-5 top-5">
         <RefreshButton />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+        <div className="rounded-[22px] border border-white/10 bg-black/25 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+          <Image src="/clawops-logo.png" alt="ClawOps" width={56} height={56} className="rounded-2xl" />
+        </div>
+        <p className="mt-4 text-[11px] uppercase tracking-[0.32em] text-[#FFB28F]">Pattern Engine Ops</p>
+        <h1 className="mt-2 text-4xl font-semibold leading-[0.92] text-white">ClawOps Dashboard</h1>
+        <p className="mt-3 max-w-2xl text-base text-neutral-400">
+          Command brief for the fleet, shaped for a fast 6:31am phone check.
+        </p>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
         <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
         <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
         <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <OverviewMiniCard
+          label="Next publish"
+          value={nextPost?.channel || "Nothing queued"}
+          detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
+        />
+        <OverviewMiniCard
+          label="System health"
+          value={systemHealth.label}
+          detail={systemHealth.detail}
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
         {quickLinks.map(([label, href]) => (
           <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
@@ -298,6 +329,8 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
 function MobileOverviewSection({ loading, data, work }: { loading: boolean; data: DashboardData; work: WorkResponse }) {
   const nextCron = getNextCron(data.cron);
   const attention = buildAttentionSignal(data, work);
+  const nextPost = data.postiz?.summary?.nextScheduled;
+  const systemHealth = buildSystemHealth(data);
 
   if (loading) {
     return (
@@ -311,21 +344,20 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
 
   return (
     <section className="space-y-4">
-      <div className="card surface-strong p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFB28F]">Pattern Engine Ops</p>
-            <h1 className="mt-2 text-[2rem] font-semibold leading-[0.95] text-white">ClawOps Dashboard</h1>
-            <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-neutral-400">
-              Command view for the fleet, built for a fast 6:31am phone check.
-            </p>
+      <div className="card surface-strong relative overflow-hidden p-4">
+        <div className="absolute right-4 top-4">
+          <RefreshButton compact />
+        </div>
+
+        <div className="flex flex-col items-center text-center">
+          <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5 shadow-[0_14px_30px_rgba(0,0,0,0.26)]">
+            <Image src="/clawops-logo.png" alt="ClawOps" width={40} height={40} className="rounded-xl" />
           </div>
-          <div className="flex shrink-0 items-start gap-2">
-            <div className="rounded-[18px] border border-white/10 bg-black/25 p-2">
-              <Image src="/clawops-logo.png" alt="ClawOps" width={34} height={34} className="rounded-xl" />
-            </div>
-            <RefreshButton compact />
-          </div>
+          <p className="mt-4 text-[11px] uppercase tracking-[0.32em] text-[#FFB28F]">Pattern Engine Ops</p>
+          <h1 className="mt-2 text-[2.15rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+          <p className="mt-3 max-w-[19rem] text-sm leading-relaxed text-neutral-400">
+            Command brief for the fleet, shaped for a fast 6:31am phone check.
+          </p>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -335,7 +367,20 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
           <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 grid gap-3">
+          <OverviewMiniCard
+            label="Next publish"
+            value={nextPost?.channel || "Nothing queued"}
+            detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
+          />
+          <OverviewMiniCard
+            label="System health"
+            value={systemHealth.label}
+            detail={systemHealth.detail}
+          />
+        </div>
+
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
           {quickLinks.map(([label, href]) => (
             <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
               <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
@@ -378,7 +423,7 @@ function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
 
 function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChange: (tab: DashboardTab) => void }) {
   return (
-    <nav className="border-t border-white/[0.06] bg-[#111111]/96 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#111111]/96 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur">
       <div className="mx-auto flex max-w-md items-center gap-1">
         {DASHBOARD_TABS.map((tab) => (
           <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[58px] flex-1 flex-col items-center justify-center rounded-[18px] px-1 text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
