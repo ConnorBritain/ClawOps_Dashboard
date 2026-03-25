@@ -130,18 +130,18 @@ function buildAttentionSignal(data: DashboardData, work: WorkResponse) {
   const cronErrors = data.cron?.summary.errors || 0;
 
   if (cronErrors > 0) {
-    return { label: `${cronErrors} cron issue${cronErrors === 1 ? "" : "s"}`, detail: "Reliability needs attention", tone: "#F87171" };
+    return { label: `${cronErrors} cron issue${cronErrors === 1 ? "" : "s"}`, detail: "Reliability risk", tone: "#F87171" };
   }
 
   if (!data.postiz?.summary?.nextScheduled) {
-    return { label: "No post queued", detail: "Publishing runway is empty", tone: "#FBBF24" };
+    return { label: "No post", detail: "Runway empty", tone: "#FBBF24" };
   }
 
   if (highPriority > 0) {
-    return { label: `${highPriority} high-priority`, detail: "Open item needs a decision", tone: "#FBBF24" };
+    return { label: `${highPriority} high-priority`, detail: "Needs a decision", tone: "#FBBF24" };
   }
 
-  return { label: "Clear deck", detail: "No immediate operational risk", tone: "#4ADE80" };
+  return { label: "Clear deck", detail: "No immediate risk", tone: "#4ADE80" };
 }
 
 function buildSystemHealth(data: DashboardData) {
@@ -151,11 +151,11 @@ function buildSystemHealth(data: DashboardData) {
   }
 
   if (data.cron?.source === "supabase") {
-    return { label: "Stable", detail: "Live cron snapshot flowing" };
+    return { label: "Stable", detail: "Snapshot live" };
   }
 
   if (data.cron?.source) {
-    return { label: "Fallback", detail: `${data.cron.source} telemetry in use` };
+    return { label: "Fallback", detail: `${data.cron.source} in use` };
   }
 
   return { label: "Unknown", detail: "Telemetry source unavailable" };
@@ -230,7 +230,7 @@ export default function DashboardShellV2() {
         <DesktopOverviewHeader data={data} work={workData} />
       </div>
 
-      <div className="hidden gap-4 lg:grid lg:grid-cols-12">
+      <div className="hidden gap-3 lg:grid lg:grid-cols-12">
         <div className="col-span-7"><SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} /></div>
         <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
@@ -244,17 +244,17 @@ export default function DashboardShellV2() {
       </main>
 
       <main className="lg:hidden">
-        <div className="h-[100dvh] overflow-hidden px-4 pt-4">
+        <div className="h-[100dvh] overflow-hidden px-3 pt-3">
           <div className="h-full overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+104px)]">
             {mobileTab === "dashboard" ? (
-              <div className="dashboard-fade pb-5">
-                <MobileOverviewSection loading={loading} data={data} work={workData} />
-              </div>
-            ) : (
-              <div className="dashboard-fade pb-5">
-                <TabHeading activeTab={mobileTab} />
-                {renderTab(mobileTab, loading, data, agentSnapshots, workData)}
-              </div>
+                <div className="dashboard-fade pb-4">
+                  <MobileOverviewSection loading={loading} data={data} work={workData} />
+                </div>
+              ) : (
+                <div className="dashboard-fade pb-4">
+                  <TabHeading activeTab={mobileTab} />
+                  {renderTab(mobileTab, loading, data, agentSnapshots, workData)}
+                </div>
             )}
           </div>
           <MobileTabBar activeTab={mobileTab} onChange={handleTabChange} />
@@ -342,28 +342,28 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
   }
 
   return (
-      <section className="space-y-4">
-      <div className="card surface-strong relative overflow-hidden p-3.5">
+      <section className="space-y-3">
+      <div className="card surface-strong relative overflow-hidden p-3">
         <div className="absolute right-3.5 top-3.5">
           <RefreshButton compact />
         </div>
 
         <div className="flex flex-col items-center text-center">
           <div className="rounded-[18px] border border-white/10 bg-black/25 p-2 shadow-[0_12px_26px_rgba(0,0,0,0.24)]">
-            <Image src="/clawops-logo.png" alt="ClawOps" width={34} height={34} className="rounded-xl" />
+            <Image src="/clawops-logo.png" alt="ClawOps" width={30} height={30} className="rounded-xl" />
           </div>
-          <h1 className="mt-3 text-[1.9rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
-          <p className="mt-2 max-w-[15rem] text-[13px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
+          <h1 className="mt-2.5 text-[1.65rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+          <p className="mt-1.5 max-w-[14rem] text-[12px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
         </div>
 
-        <div className="mt-3.5 grid grid-cols-2 gap-2.5">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
           <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
           <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
           <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
         </div>
 
-        <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <OverviewMiniCard
             label="Next publish"
             value={nextPost?.channel || "Nothing queued"}
@@ -378,13 +378,15 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
           />
         </div>
 
-        <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-          {quickLinks.map(([label, href]) => (
-            <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
-              {label}
-            </a>
-          ))}
+        <div className="mt-2 overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-1.5">
+            {quickLinks.map(([label, href]) => (
+              <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
+                {label}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -395,8 +397,8 @@ function OverviewMiniCard({ label, value, detail, compact = false }: { label: st
   return (
     <div className={cx("surface-soft rounded-[20px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-medium text-white", compact ? "mt-1.5 text-[13px]" : "mt-2 text-sm")}>{value}</p>
-      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[11px]" : "mt-1 text-xs")}>{detail}</p>
+      <p className={cx("font-medium text-white", compact ? "mt-1 text-[12px]" : "mt-2 text-sm")}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-1 text-xs")}>{detail}</p>
     </div>
   );
 }
@@ -406,8 +408,8 @@ function HeroSignalCard({ label, value, detail, tone, compact = false }: { label
   return (
     <div className={cx("surface-soft rounded-[22px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-2 text-[1.05rem]" : "mt-2 text-[1.45rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
-      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1.5 text-[11px]" : "mt-2 text-xs")}>{detail}</p>
+      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1.5 text-[0.98rem]" : "mt-1.5 text-[1.28rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
     </div>
   );
 }
@@ -418,12 +420,12 @@ function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
 
 function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChange: (tab: DashboardTab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#111111]/96 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#111111]/96 px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-1.5 backdrop-blur">
       <div className="mx-auto flex max-w-md items-center gap-1">
         {DASHBOARD_TABS.map((tab) => (
-          <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[58px] flex-1 flex-col items-center justify-center rounded-[18px] px-1 text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
+          <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[54px] flex-1 flex-col items-center justify-center rounded-[16px] px-1 text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
             {tabMeta[tab].icon}
-            <span className="mt-1">{tabMeta[tab].navLabel}</span>
+            <span className="mt-0.5">{tabMeta[tab].navLabel}</span>
           </button>
         ))}
       </div>
