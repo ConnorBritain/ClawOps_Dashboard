@@ -20,7 +20,11 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch(`${POSTIZ_API_URL}/posts?limit=20`, {
+    // Postiz requires startDate and endDate
+    const now = new Date();
+    const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days ago
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days ahead
+    const res = await fetch(`${POSTIZ_API_URL}/posts?startDate=${startDate}&endDate=${endDate}`, {
       headers: {
         Authorization: POSTIZ_API_KEY,
         "Content-Type": "application/json",

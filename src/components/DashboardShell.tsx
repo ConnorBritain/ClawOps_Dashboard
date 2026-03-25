@@ -226,6 +226,28 @@ export default function DashboardShell() {
             tone={data.cron?.summary.errors ? "#F87171" : "#4ADE80"}
           />
         </div>
+
+        {/* Quick Links */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a href="https://patternengineai.slack.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#FF7D45]/30 hover:text-[#FF7D45]">
+            💬 Slack
+          </a>
+          <a href="https://drive.google.com/drive/u/0/shared-drives" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#4ADE80]/30 hover:text-[#4ADE80]">
+            📁 Drive
+          </a>
+          <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#60A5FA]/30 hover:text-[#60A5FA]">
+            🔑 OpenRouter
+          </a>
+          <a href="https://platform.postiz.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#DC97FF]/30 hover:text-[#DC97FF]">
+            📱 Postiz
+          </a>
+          <a href="https://www.skool.com/genai-growth-labs-6038" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#FBBF24]/30 hover:text-[#FBBF24]">
+            🎓 Skool
+          </a>
+          <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:border-[#4ADE80]/30 hover:text-[#4ADE80]">
+            🧠 Beacon
+          </a>
+        </div>
       </header>
 
       <div className="lg:hidden">
