@@ -1,20 +1,36 @@
 import { NextResponse } from "next/server";
 
-export const revalidate = 900; // 15 min cache
+export const revalidate = 60; // 1 min cache
 
-// The cron data will be populated from a snapshot file that Cyrus updates
-// via a cron job or heartbeat. For now, we read from a static JSON file
-// that gets refreshed by the VPS agent.
-//
-// In production, we could also hit the OpenClaw gateway API directly
-// if it's accessible from Vercel (it won't be since it's Tailscale-only).
-// So we use a snapshot approach: a cron job writes the state to Supabase
-// or a public endpoint.
+// For the VPS-hosted version, we can hit the OpenClaw gateway directly.
+// For Vercel, we'd need a snapshot push mechanism.
+// This route tries the gateway first, falls back to cached data.
 
-// For MVP: hardcode the cron data from what we know
-// TODO: Add a /api/cron/refresh endpoint that the VPS calls to update
+const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://localhost:3030";
+
+interface CronJobState {
+  nextRunAtMs?: number;
+  lastRunAtMs?: number;
+  lastRunStatus?: string;
+  lastStatus?: string;
+  lastDurationMs?: number;
+  consecutiveErrors?: number;
+}
 
 interface CronJob {
+  id: string;
+  agentId: string;
+  name: string;
+  enabled: boolean;
+  schedule: {
+    kind: string;
+    expr?: string;
+    tz?: string;
+  };
+  state?: CronJobState;
+}
+
+interface CronSummary {
   id: string;
   agentId: string;
   name: string;
@@ -23,49 +39,115 @@ interface CronJob {
   lastRunAt: string | null;
   lastStatus: string | null;
   nextRunAt: string | null;
+  lastDurationMs: number | null;
   consecutiveErrors: number;
 }
 
-// Static snapshot from the actual cron list (refreshed by agent)
-const CRON_SNAPSHOT: CronJob[] = [
-  { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", enabled: true, schedule: "21:00 M-F", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "dahlia-morning", agentId: "dahlia", name: "Morning Orchestrator", enabled: true, schedule: "06:30 M-F", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "dahlia-content", agentId: "dahlia", name: "Weekly Content Check", enabled: true, schedule: "09:00 Mon", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", enabled: true, schedule: "19:00 Sun", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "repo-sync", agentId: "dahlia", name: "Repo Sync", enabled: true, schedule: "05:00 daily", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Check", enabled: true, schedule: "08:00 M-F", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "cyrus-g2l-work", agentId: "cyrus-g2l", name: "Work Check", enabled: true, schedule: "08:00 M-F", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "cyrus-pidgeon-work", agentId: "cyrus-pidgeon", name: "Work Check", enabled: true, schedule: "08:00 M-F", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-pe-weekly", agentId: "echo-pe", name: "Weekly Plan", enabled: true, schedule: "10:00 Mon", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-pe-midweek", agentId: "echo-pe", name: "Mid-week Check", enabled: true, schedule: "10:00 Wed", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Plan", enabled: true, schedule: "10:30 Mon", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents", enabled: true, schedule: "09:00 Tue", lastRunAt: null, lastStatus: "ok", nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", enabled: true, schedule: "15:00 Fri", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "echo-pidgeon-newsletter", agentId: "echo-pidgeon", name: "Newsletter", enabled: true, schedule: "10:00 biweekly Mon", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "enzo-monday", agentId: "enzo", name: "Monday Check-in", enabled: true, schedule: "07:00 Mon", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-  { id: "enzo-thursday", agentId: "enzo", name: "Thursday Pulse", enabled: true, schedule: "12:00 Thu", lastRunAt: null, lastStatus: null, nextRunAt: null, consecutiveErrors: 0 },
-];
+function formatSchedule(schedule: CronJob["schedule"]): string {
+  if (schedule.kind === "cron" && schedule.expr) {
+    return schedule.expr;
+  }
+  return schedule.kind;
+}
+
+function formatTimestamp(ms: number | undefined): string | null {
+  if (!ms) return null;
+  return new Date(ms).toISOString();
+}
 
 export async function GET() {
-  // Group by agent
-  const byAgent: Record<string, CronJob[]> = {};
-  for (const job of CRON_SNAPSHOT) {
+  try {
+    // Try to fetch live cron data from gateway
+    const res = await fetch(`${GATEWAY_URL}/api/cron/jobs`, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN || ""}`,
+      },
+      next: { revalidate: 60 },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const jobs: CronJob[] = data.jobs || [];
+
+      const summary: CronSummary[] = jobs.map((j) => ({
+        id: j.id,
+        agentId: j.agentId,
+        name: j.name || j.id,
+        enabled: j.enabled,
+        schedule: formatSchedule(j.schedule),
+        lastRunAt: formatTimestamp(j.state?.lastRunAtMs),
+        lastStatus: j.state?.lastStatus || null,
+        nextRunAt: formatTimestamp(j.state?.nextRunAtMs),
+        lastDurationMs: j.state?.lastDurationMs || null,
+        consecutiveErrors: j.state?.consecutiveErrors || 0,
+      }));
+
+      // Group by agent
+      const byAgent: Record<string, CronSummary[]> = {};
+      for (const job of summary) {
+        if (!byAgent[job.agentId]) byAgent[job.agentId] = [];
+        byAgent[job.agentId].push(job);
+      }
+
+      return NextResponse.json({
+        jobs: summary,
+        byAgent,
+        summary: {
+          total: summary.length,
+          enabled: summary.filter((j) => j.enabled).length,
+          errors: summary.filter((j) => j.consecutiveErrors > 0).length,
+        },
+        source: "live",
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+  } catch {
+    // Gateway not reachable — fall back to static
+  }
+
+  // Fallback: return static snapshot
+  const fallback = getFallbackData();
+  return NextResponse.json({
+    ...fallback,
+    source: "static",
+    fetchedAt: new Date().toISOString(),
+  });
+}
+
+function getFallbackData() {
+  const jobs: CronSummary[] = [
+    { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", enabled: true, schedule: "0 21 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 44368, consecutiveErrors: 0 },
+    { id: "dahlia-morning", agentId: "dahlia", name: "Morning Orchestrator", enabled: true, schedule: "30 6 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 87252, consecutiveErrors: 0 },
+    { id: "dahlia-content", agentId: "dahlia", name: "Weekly Content Check", enabled: true, schedule: "0 9 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", enabled: true, schedule: "0 19 * * 0", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "repo-sync", agentId: "dahlia", name: "Repo Sync", enabled: true, schedule: "0 5 * * *", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 28767, consecutiveErrors: 0 },
+    { id: "cyrus-g2l-work", agentId: "cyrus-g2l", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 23472, consecutiveErrors: 0 },
+    { id: "cyrus-pidgeon-work", agentId: "cyrus-pidgeon", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 16537, consecutiveErrors: 0 },
+    { id: "echo-pe-weekly", agentId: "echo-pe", name: "Weekly Plan", enabled: true, schedule: "0 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-pe-midweek", agentId: "echo-pe", name: "Mid-week Check", enabled: true, schedule: "0 10 * * 3", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Plan", enabled: true, schedule: "30 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents", enabled: true, schedule: "0 9 * * 2", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 165466, consecutiveErrors: 0 },
+    { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", enabled: true, schedule: "0 15 * * 5", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-pidgeon-newsletter", agentId: "echo-pidgeon", name: "Newsletter", enabled: true, schedule: "0 10 1-7,15-21 * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "enzo-monday", agentId: "enzo", name: "Monday Check-in", enabled: true, schedule: "0 7 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "enzo-thursday", agentId: "enzo", name: "Thursday Pulse", enabled: true, schedule: "0 12 * * 4", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+  ];
+
+  const byAgent: Record<string, CronSummary[]> = {};
+  for (const job of jobs) {
     if (!byAgent[job.agentId]) byAgent[job.agentId] = [];
     byAgent[job.agentId].push(job);
   }
 
-  const totalJobs = CRON_SNAPSHOT.length;
-  const enabledJobs = CRON_SNAPSHOT.filter((j) => j.enabled).length;
-  const errorJobs = CRON_SNAPSHOT.filter((j) => j.consecutiveErrors > 0).length;
-
-  return NextResponse.json({
-    jobs: CRON_SNAPSHOT,
+  return {
+    jobs,
     byAgent,
     summary: {
-      total: totalJobs,
-      enabled: enabledJobs,
-      errors: errorJobs,
+      total: jobs.length,
+      enabled: jobs.filter((j) => j.enabled).length,
+      errors: jobs.filter((j) => j.consecutiveErrors > 0).length,
     },
-    fetchedAt: new Date().toISOString(),
-  });
+  };
 }

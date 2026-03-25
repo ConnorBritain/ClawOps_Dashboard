@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRefresh } from "./RefreshProvider";
 
 interface ContentItem {
   label: string;
@@ -32,6 +33,7 @@ const typeIcons: Record<string, string> = {
 export default function ContentStatus() {
   const [data, setData] = useState<ContentData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { refreshKey } = useRefresh();
 
   useEffect(() => {
     fetch("/api/content-status")
@@ -41,7 +43,7 @@ export default function ContentStatus() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (

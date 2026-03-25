@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AgentSpend } from "@/lib/agents";
+import { useRefresh } from "./RefreshProvider";
 
 interface SpendData {
   agents: AgentSpend[];
@@ -29,6 +30,7 @@ function formatUSD(n: number) {
 export default function OpenRouterSpend() {
   const [data, setData] = useState<SpendData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { refreshKey } = useRefresh();
 
   useEffect(() => {
     fetch("/api/spend")
@@ -38,7 +40,7 @@ export default function OpenRouterSpend() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { SeasonState } from "@/lib/seasons";
+import { useRefresh } from "./RefreshProvider";
 
 function SeasonIcon({ name }: { name: string }) {
   const icons: Record<string, string> = {
@@ -16,6 +17,7 @@ function SeasonIcon({ name }: { name: string }) {
 export default function SeasonTracker() {
   const [state, setState] = useState<SeasonState | null>(null);
   const [loading, setLoading] = useState(true);
+  const { refreshKey } = useRefresh();
 
   useEffect(() => {
     fetch("/api/season")
@@ -25,7 +27,7 @@ export default function SeasonTracker() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (
