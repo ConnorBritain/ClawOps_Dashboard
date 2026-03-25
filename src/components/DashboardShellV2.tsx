@@ -584,13 +584,17 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
           label="Next publish"
           value={nextPost?.channel || "Nothing queued"}
           detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
+          centered
         />
         <GrowthSpotlightCard source={growthSource} />
       </div>
 
-      <div className="mt-3 grid gap-2.5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <VentureLaunchpadGrid />
+      <div className="mt-3">
         <UtilityLinksGrid />
+      </div>
+
+      <div className="mt-2.5">
+        <VentureLaunchpadGrid />
       </div>
     </header>
   );
@@ -650,25 +654,47 @@ function MobileOverviewSection({
             value={nextPost?.channel || "Nothing queued"}
             detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
             compact
+            centered
           />
           <GrowthSpotlightCard source={growthSource} compact onClick={onOpenMetrics} />
         </div>
 
-        <div className="mt-1.5 grid gap-1.5">
-          <VentureLaunchpadGrid compact />
+        <div className="mt-1.5">
           <UtilityLinksGrid compact />
+        </div>
+
+        <div className="mt-1.5">
+          <VentureLaunchpadGrid compact />
         </div>
       </div>
     </section>
   );
 }
 
-function OverviewMiniCard({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
+function OverviewMiniCard({
+  label,
+  value,
+  detail,
+  compact = false,
+  centered = false,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  compact?: boolean;
+  centered?: boolean;
+}) {
   return (
-    <div className={cx("surface-soft rounded-[20px]", compact ? "min-h-[94px] px-2.75 py-2.5" : "min-h-[104px] px-3.5 py-3.5")}>
+    <div
+      className={cx(
+        "surface-soft rounded-[20px] flex flex-col",
+        compact ? "min-h-[94px] px-3 py-3" : "min-h-[104px] px-4 py-3.5",
+        centered ? "items-center justify-center text-center" : "justify-center",
+      )}
+    >
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-medium leading-tight text-white", compact ? "mt-1.5 text-[12px]" : "mt-2 text-sm")}>{value}</p>
-      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-1 text-xs")}>{detail}</p>
+      <p className={cx("font-medium leading-tight text-white", compact ? "mt-2 text-[13px]" : "mt-2.5 text-[15px]", centered && "max-w-[14rem]")}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[10px]" : "mt-1.5 text-xs", centered && "max-w-[14rem]")}>{detail}</p>
     </div>
   );
 }
@@ -694,8 +720,8 @@ function GrowthSpotlightCard({
     <Wrapper
       {...(onClick ? { type: "button", onClick } : {})}
       className={cx(
-        "surface-soft rounded-[20px] text-left transition-all",
-        compact ? "min-h-[94px] px-2.75 py-2.5" : "min-h-[104px] px-3.5 py-3.5",
+        "surface-soft rounded-[20px] flex flex-col justify-center text-center transition-all",
+        compact ? "min-h-[94px] px-3 py-3" : "min-h-[104px] px-4 py-3.5",
         onClick ? "w-full hover:border-white/[0.12]" : "",
       )}
     >
@@ -707,8 +733,8 @@ function GrowthSpotlightCard({
         </span>
       </div>
 
-      <p className={cx("mt-1 font-medium text-white", compact ? "text-[11px]" : "text-sm")}>{spotlight.heading}</p>
-      <p className={cx("mt-1 font-semibold leading-none", compact ? "text-[1.6rem]" : "text-[1.9rem]")} style={{ color: spotlight.emphasis }}>
+      <p className={cx("mt-2 font-medium text-white", compact ? "text-[13px]" : "text-[15px]")}>{spotlight.heading}</p>
+      <p className={cx("mt-1.5 font-semibold leading-none", compact ? "text-[1.75rem]" : "text-[2rem]")} style={{ color: spotlight.emphasis }}>
         {spotlight.value}
       </p>
       <p className="mt-1.5 text-[10px] text-neutral-500">{spotlight.detail}</p>
@@ -782,10 +808,10 @@ function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
 function HeroSignalCard({ label, value, detail, tone, compact = false }: { label: string; value: string; detail: string; tone: string; compact?: boolean }) {
   const longValue = value.length > 8;
   return (
-    <div className={cx("surface-soft rounded-[22px]", compact ? "min-h-[108px] px-2.8 py-2.75" : "min-h-[120px] px-3.5 py-3.5")}>
+    <div className={cx("surface-soft rounded-[22px] flex flex-col justify-center text-center", compact ? "min-h-[108px] px-3 py-3" : "min-h-[120px] px-4 py-3.75")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-semibold leading-[0.96] break-words whitespace-pre-line", compact ? (longValue ? "mt-1.5 text-[0.9rem]" : "mt-1.5 text-[1.02rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
-      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
+      <p className={cx("font-semibold leading-[1.02] break-words whitespace-pre-line", compact ? (longValue ? "mt-2 text-[1rem]" : "mt-2 text-[1.18rem]") : "mt-2.5 text-[2.1rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[10px]" : "mt-1.5 text-xs")}>{detail}</p>
     </div>
   );
 }
