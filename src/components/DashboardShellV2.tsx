@@ -45,11 +45,12 @@ interface DashboardData {
 
 const EMPTY_WORK: WorkResponse = { items: [], byAgent: {}, byStatus: {}, total: 0 };
 
-const tabMeta: Record<DashboardTab, { label: string; eyebrow: string; icon: ReactNode }> = {
-  season: { label: "Season", eyebrow: "Fiscal rhythm", icon: <SignalIcon /> },
-  agents: { label: "Agents", eyebrow: "Fleet health", icon: <RobotIcon /> },
-  content: { label: "Content", eyebrow: "Publishing flow", icon: <NotebookIcon /> },
-  metrics: { label: "Metrics", eyebrow: "Business pulse", icon: <ChartIcon /> },
+const tabMeta: Record<DashboardTab, { label: string; navLabel: string; eyebrow: string; icon: ReactNode }> = {
+  dashboard: { label: "Dashboard", navLabel: "Home", eyebrow: "Command overview", icon: <OverviewIcon /> },
+  season: { label: "Season", navLabel: "Season", eyebrow: "Fiscal rhythm", icon: <SignalIcon /> },
+  agents: { label: "Agents", navLabel: "Agents", eyebrow: "Fleet health", icon: <RobotIcon /> },
+  content: { label: "Content", navLabel: "Content", eyebrow: "Publishing flow", icon: <NotebookIcon /> },
+  metrics: { label: "Metrics", navLabel: "Metrics", eyebrow: "Business pulse", icon: <ChartIcon /> },
 };
 
 const quickLinks = [
@@ -62,7 +63,7 @@ const quickLinks = [
 ] as const;
 
 function normalizeTab(value: string | null): DashboardTab {
-  return DASHBOARD_TABS.includes(value as DashboardTab) ? (value as DashboardTab) : "season";
+  return DASHBOARD_TABS.includes(value as DashboardTab) ? (value as DashboardTab) : "dashboard";
 }
 
 async function fetchResource<T>(url: string) {
@@ -146,10 +147,13 @@ export default function DashboardShellV2() {
 
   function handleTabChange(nextTab: DashboardTab) {
     const params = new URLSearchParams(searchParams.toString());
-    if (nextTab === "season") params.delete("tab");
+    if (nextTab === "dashboard") params.delete("tab");
     else params.set("tab", nextTab);
     const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(nextUrl, { scroll: false });
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    }
   }
 
   const agentSnapshots = buildAgentSnapshots(data.spend, data.cron, data.work);
@@ -157,41 +161,21 @@ export default function DashboardShellV2() {
 
   return (
     <main className="mx-auto min-h-screen max-w-[1440px] px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10">
-      <header className="card surface-strong mb-5 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5">
-              <Image src="/clawops-logo.png" alt="ClawOps" width={44} height={44} className="rounded-xl" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFB28F]">Pattern Engine Ops</p>
-              <h1 className="mt-1 text-xl font-semibold text-white sm:text-2xl">ClawOps Dashboard</h1>
-              <p className="mt-1 max-w-xl text-sm text-neutral-400">Dark, dense, coffee-check-ready command view for the fleet.</p>
-            </div>
-          </div>
-          <RefreshButton />
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <HeaderMetric label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} tone="#FF7D45" />
-          <HeaderMetric label="Open work" value={String(workData.total)} tone="#DC97FF" />
-          <HeaderMetric label="Beacon thoughts" value={data.beacon ? String(data.beacon.totalThoughts) : "--"} tone="#60A5FA" />
-          <HeaderMetric label="Cron source" value={data.cron?.source || "--"} tone={data.cron?.source === "supabase" ? "#4ADE80" : "#FBBF24"} />
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {quickLinks.map(([label, href]) => (
-            <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
-              {label}
-            </a>
-          ))}
-        </div>
-      </header>
+      <div className="hidden lg:block">
+        <DesktopOverviewHeader data={data} work={workData} />
+      </div>
 
       <div className="lg:hidden">
-        <TabHeading activeTab={activeTab} />
-        <div className="dashboard-fade">{renderTab(activeTab, loading, data, agentSnapshots, workData)}</div>
+        {activeTab === "dashboard" ? (
+          <div className="dashboard-fade">
+            <MobileOverviewSection loading={loading} data={data} work={workData} />
+          </div>
+        ) : (
+          <>
+            <TabHeading activeTab={activeTab} />
+            <div className="dashboard-fade">{renderTab(activeTab, loading, data, agentSnapshots, workData)}</div>
+          </>
+        )}
       </div>
 
       <div className="hidden gap-4 lg:grid lg:grid-cols-12">
@@ -202,7 +186,7 @@ export default function DashboardShellV2() {
       </div>
 
       <footer className="mt-8 hidden items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-neutral-600 lg:flex">
-        <p>Pattern Engine LLC · ops.patternengine.ai</p>
+        <p>Pattern Engine LLC - ops.patternengine.ai</p>
         <p>Connor coffee-check ready at 375px</p>
       </footer>
 
@@ -212,18 +196,136 @@ export default function DashboardShellV2() {
 }
 
 function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, agents: AgentSnapshot[], work: WorkResponse) {
+  if (tab === "dashboard") return <MobileOverviewSection loading={loading} data={data} work={work} />;
   if (tab === "season") return <SeasonSection loading={loading} season={data.season} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
   if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} />;
   return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} compact={false} />;
 }
 
+function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: WorkResponse }) {
+  return (
+    <header className="card surface-strong mb-5 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5">
+            <Image src="/clawops-logo.png" alt="ClawOps" width={44} height={44} className="rounded-xl" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFB28F]">Pattern Engine Ops</p>
+            <h1 className="mt-1 text-2xl font-semibold text-white">ClawOps Dashboard</h1>
+            <p className="mt-1 max-w-xl text-sm text-neutral-400">Dark, dense, coffee-check-ready command view for the fleet.</p>
+          </div>
+        </div>
+        <RefreshButton />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <HeaderMetric label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} tone="#FF7D45" />
+        <HeaderMetric label="Open work" value={String(work.total)} tone="#DC97FF" />
+        <HeaderMetric label="Beacon thoughts" value={data.beacon ? String(data.beacon.totalThoughts) : "--"} tone="#60A5FA" />
+        <HeaderMetric label="Cron source" value={data.cron?.source || "--"} tone={data.cron?.source === "supabase" ? "#4ADE80" : "#FBBF24"} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {quickLinks.map(([label, href]) => (
+          <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
+            {label}
+          </a>
+        ))}
+      </div>
+    </header>
+  );
+}
+
+function MobileOverviewSection({ loading, data, work }: { loading: boolean; data: DashboardData; work: WorkResponse }) {
+  const nextCron = [...(data.cron?.jobs || [])]
+    .filter((job) => job.nextRunAt)
+    .sort((left, right) => new Date(left.nextRunAt as string).getTime() - new Date(right.nextRunAt as string).getTime())[0];
+
+  if (loading) {
+    return (
+      <section className="space-y-4">
+        <div className="card surface-strong p-4">
+          <SkeletonRows rows={4} />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="card surface-strong p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFB28F]">Pattern Engine Ops</p>
+            <h1 className="mt-2 text-[2rem] font-semibold leading-[0.95] text-white">ClawOps Dashboard</h1>
+            <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-neutral-400">
+              Command view for the fleet, built for a fast 6:31am phone check.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-start gap-2">
+            <div className="rounded-[18px] border border-white/10 bg-black/25 p-2">
+              <Image src="/clawops-logo.png" alt="ClawOps" width={34} height={34} className="rounded-xl" />
+            </div>
+            <RefreshButton compact />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <HeaderMetric label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} tone="#FF7D45" />
+          <HeaderMetric label="Open work" value={String(work.total)} tone="#DC97FF" />
+          <HeaderMetric label="Beacon thoughts" value={data.beacon ? String(data.beacon.totalThoughts) : "--"} tone="#60A5FA" />
+          <HeaderMetric label="Cron source" value={data.cron?.source || "--"} tone={data.cron?.source === "supabase" ? "#4ADE80" : "#FBBF24"} />
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <OverviewMiniCard
+            label="Next cron"
+            value={nextCron ? nextCron.name : "No schedule"}
+            detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"}
+          />
+          <OverviewMiniCard
+            label="Next post"
+            value={data.postiz?.summary?.nextScheduled?.channel || "Nothing queued"}
+            detail={
+              data.postiz?.summary?.nextScheduled?.scheduledDate
+                ? formatCentralDateTime(data.postiz.summary.nextScheduled.scheduledDate)
+                : "Postiz quiet"
+            }
+          />
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quickLinks.map(([label, href]) => (
+            <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
+              {label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OverviewMiniCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="surface-soft rounded-[20px] px-3 py-3">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
+      <p className="mt-2 text-sm font-medium text-white">{value}</p>
+      <p className="mt-1 text-xs leading-relaxed text-neutral-500">{detail}</p>
+    </div>
+  );
+}
+
 function HeaderMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return <div className="surface-soft rounded-[22px] px-3 py-3"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-2 text-lg font-semibold" style={{ color: tone }}>{value}</p></div>;
+  return <div className="surface-soft rounded-[22px] px-3 py-3"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-2 text-xl font-semibold leading-none" style={{ color: tone }}>{value}</p></div>;
 }
 
 function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
-  return <div className="mb-3 flex items-end justify-between"><div><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-2xl font-semibold text-white">{tabMeta[activeTab].label}</h2></div><div className="rounded-full border border-[#FF7D45]/20 bg-[#FF7D45]/8 px-3 py-1 text-[11px] text-[#FFB28F]">Mobile screen</div></div>;
+  return <div className="mb-4"><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[2rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
 }
 
 function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChange: (tab: DashboardTab) => void }) {
@@ -231,9 +333,9 @@ function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChan
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#111111]/92 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur lg:hidden">
       <div className="mx-auto flex max-w-md items-center gap-1">
         {DASHBOARD_TABS.map((tab) => (
-          <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[56px] flex-1 flex-col items-center justify-center rounded-[18px] text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
+          <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[58px] flex-1 flex-col items-center justify-center rounded-[18px] px-1 text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
             {tabMeta[tab].icon}
-            <span className="mt-1">{tabMeta[tab].label}</span>
+            <span className="mt-1">{tabMeta[tab].navLabel}</span>
           </button>
         ))}
       </div>
@@ -242,7 +344,7 @@ function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChan
 }
 
 function SectionCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
-  return <section className="card"><div className="mb-4"><p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">{subtitle}</p><h3 className="mt-1 text-lg font-semibold text-white">{title}</h3></div>{children}</section>;
+  return <section className="card p-4 sm:p-5"><div className="mb-4"><p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">{subtitle}</p><h3 className="mt-1 text-lg font-semibold text-white">{title}</h3></div>{children}</section>;
 }
 
 function SeasonSection({ loading, season }: { loading: boolean; season: SeasonResponse | null }) {
@@ -254,11 +356,11 @@ function SeasonSection({ loading, season }: { loading: boolean; season: SeasonRe
 
   return (
     <SectionCard title="Season" subtitle={preLaunch ? "Pre-launch countdown" : "Fiscal rhythm"}>
-      <div className="surface-strong rounded-[26px] p-5">
+      <div className="surface-strong rounded-[26px] p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xl">
             <p className="text-sm font-medium text-[#FFB28F]">Season {preLaunch ? "1: Signal" : `${season.season.number}: ${season.season.name}`}</p>
-            <h4 className="mt-1 text-3xl font-semibold text-white sm:text-[2.35rem]">
+            <h4 className="mt-1 text-[2.35rem] font-semibold leading-[0.96] text-white sm:text-[2.35rem]">
               {preLaunch ? "Launch sequence running" : `Week ${season.weekInSeason} of 13`}
             </h4>
             <p className="mt-2 text-sm leading-relaxed text-neutral-400">
@@ -267,7 +369,7 @@ function SeasonSection({ loading, season }: { loading: boolean; season: SeasonRe
             <p className="mt-3 text-sm text-neutral-500">Pattern machines are here. Wisdom is optional.</p>
           </div>
           <div className="rounded-[28px] border border-white/10 bg-black/25 px-5 py-4 text-center sm:min-w-[134px]">
-            <p className="text-6xl font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-7xl">{season.daysUntilNextSeason}</p>
+            <p className="text-7xl font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-7xl">{season.daysUntilNextSeason}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-neutral-500">{preLaunch ? "days" : "to next"}</p>
           </div>
         </div>
@@ -278,8 +380,7 @@ function SeasonSection({ loading, season }: { loading: boolean; season: SeasonRe
         </div>
       </div>
 
-      <div className="relative mt-4">
-        <div className="absolute left-6 right-6 top-6 hidden h-px bg-[linear-gradient(90deg,rgba(255,125,69,0.26),rgba(255,255,255,0.08),rgba(220,151,255,0.24))] sm:block" />
+      <div className="mt-4 border-t border-white/[0.05] pt-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {labels.map((label, index) => (
             <div key={label} className={cx("surface-soft rounded-[22px] px-3 py-3", index === 0 && "border-[#FF7D45]/16 bg-[#FF7D45]/[0.05]")}>
@@ -315,24 +416,24 @@ function AgentsSection({ loading, snapshots, cronSource }: { loading: boolean; s
           const summary = snapshot.jobs[0] ? cronState(snapshot.jobs[0]) : ["#555555", "No data"] as const;
           return (
             <article key={snapshot.id} className="surface-soft overflow-hidden rounded-[24px]">
-              <button type="button" onClick={() => setExpanded(active ? null : snapshot.id)} className="w-full p-4 text-left transition-colors hover:bg-white/[0.015]">
+              <button type="button" onClick={() => setExpanded(active ? null : snapshot.id)} className="w-full p-3.5 text-left transition-colors hover:bg-white/[0.015] sm:p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/[0.08] bg-black/25 text-[#FFB28F]"><OrbitMiniIcon /></div>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-[16px] border border-white/[0.08] bg-black/25 text-[#FFB28F] sm:h-10 sm:w-10 sm:rounded-[18px]"><OrbitMiniIcon /></div>
                       <p className="text-base font-medium text-white">{snapshot.name}</p>
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${getVentureClasses(snapshot.venture)}`}>{snapshot.venture}</span>
                     </div>
-                    <p className="mt-2 text-sm" style={{ color: summary[0] }}>{snapshot.nextRunAt ? `Next ${formatTimeUntil(snapshot.nextRunAt)} · ${summary[1]}` : summary[1]}</p>
+                    <p className="mt-2 text-sm" style={{ color: summary[0] }}>{snapshot.nextRunAt ? `Next ${formatTimeUntil(snapshot.nextRunAt)} - ${summary[1]}` : summary[1]}</p>
                   </div>
                   <span className="mt-1 h-3 w-3 rounded-full" style={{ backgroundColor: summary[0] }} />
                 </div>
-                <div className="mt-4">
+                <div className="mt-3 sm:mt-4">
                   <div className="mb-1 flex items-center justify-between text-xs text-neutral-500"><span>{spend.label}</span><span>{spend.detail}</span></div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${spend.percent}%`, backgroundColor: spend.tone }} /></div>
                 </div>
               </button>
-              {active ? <div className="grid gap-4 border-t border-white/[0.06] bg-black/15 p-4 xl:grid-cols-[1.02fr_1fr]"><div className="space-y-4"><div className="surface-soft rounded-[22px] p-4"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Spend breakdown</p><div className="mt-3 grid grid-cols-2 gap-3">{["Today", "This week", "This month", "Remaining"].map((label, index) => <MetricBox key={label} label={label} value={index === 0 ? formatCurrency(snapshot.spend?.daily || 0) : index === 1 ? formatCurrency(snapshot.spend?.weekly || 0) : index === 2 ? formatCurrency(snapshot.spend?.monthly || 0) : snapshot.spend?.limitRemaining != null ? formatCurrency(snapshot.spend.limitRemaining) : "--"} />)}</div></div><div className="surface-soft rounded-[22px] p-4"><div className="mb-3 flex items-center justify-between"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Active work</p><span className="text-sm text-neutral-400">{snapshot.activeWorkCount} item{snapshot.activeWorkCount === 1 ? "" : "s"}</span></div>{snapshot.workItems.length ? <div className="space-y-2">{snapshot.workItems.map((item) => <WorkItemRow key={item.id} item={item} />)}</div> : <p className="text-sm text-neutral-500">Nothing queued for this agent.</p>}</div></div><div className="surface-soft rounded-[22px] p-4"><div className="mb-3 flex items-center justify-between"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Cron activity</p><span className="text-xs text-neutral-500">{snapshot.jobs.length} jobs</span></div><div className="space-y-2">{snapshot.jobs.length ? snapshot.jobs.map((job) => { const [tone, label] = cronState(job); return <div key={job.id} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-white">{job.name}</p><p className="mt-1 text-[11px] text-neutral-500">{job.schedule}</p></div><div className="flex items-center gap-2 text-[11px] text-neutral-400"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tone }} />{label}</div></div><div className="mt-2 flex flex-wrap gap-3 text-[11px] text-neutral-400"><span>Last {formatTimeAgo(job.lastRunAt)}</span><span>Next {formatTimeUntil(job.nextRunAt)}</span><span>Duration {formatDuration(job.lastDurationMs)}</span></div></div>; }) : <p className="text-sm text-neutral-500">No cron jobs reported.</p>}</div></div></div> : null}
+              {active ? <div className="grid gap-4 border-t border-white/[0.06] bg-black/15 p-3.5 sm:p-4 xl:grid-cols-[1.02fr_1fr]"><div className="space-y-4"><div className="surface-soft rounded-[22px] p-4"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Spend breakdown</p><div className="mt-3 grid grid-cols-2 gap-3">{["Today", "This week", "This month", "Remaining"].map((label, index) => <MetricBox key={label} label={label} value={index === 0 ? formatCurrency(snapshot.spend?.daily || 0) : index === 1 ? formatCurrency(snapshot.spend?.weekly || 0) : index === 2 ? formatCurrency(snapshot.spend?.monthly || 0) : snapshot.spend?.limitRemaining != null ? formatCurrency(snapshot.spend.limitRemaining) : "--"} />)}</div></div><div className="surface-soft rounded-[22px] p-4"><div className="mb-3 flex items-center justify-between"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Active work</p><span className="text-sm text-neutral-400">{snapshot.activeWorkCount} item{snapshot.activeWorkCount === 1 ? "" : "s"}</span></div>{snapshot.workItems.length ? <div className="space-y-2">{snapshot.workItems.map((item) => <WorkItemRow key={item.id} item={item} />)}</div> : <p className="text-sm text-neutral-500">Nothing queued for this agent.</p>}</div></div><div className="surface-soft rounded-[22px] p-4"><div className="mb-3 flex items-center justify-between"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Cron activity</p><span className="text-xs text-neutral-500">{snapshot.jobs.length} jobs</span></div><div className="space-y-2">{snapshot.jobs.length ? snapshot.jobs.map((job) => { const [tone, label] = cronState(job); return <div key={job.id} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-white">{job.name}</p><p className="mt-1 text-[11px] text-neutral-500">{job.schedule}</p></div><div className="flex items-center gap-2 text-[11px] text-neutral-400"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tone }} />{label}</div></div><div className="mt-2 flex flex-wrap gap-3 text-[11px] text-neutral-400"><span>Last {formatTimeAgo(job.lastRunAt)}</span><span>Next {formatTimeUntil(job.nextRunAt)}</span><span>Duration {formatDuration(job.lastDurationMs)}</span></div></div>; }) : <p className="text-sm text-neutral-500">No cron jobs reported.</p>}</div></div></div> : null}
             </article>
           );
         })}
@@ -342,7 +443,7 @@ function AgentsSection({ loading, snapshots, cronSource }: { loading: boolean; s
 }
 
 function MetricBox({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</p><p className="mt-1 text-sm font-medium text-white">{value}</p></div>;
+  return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-2.5 sm:p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</p><p className="mt-1 text-sm font-medium text-white">{value}</p></div>;
 }
 
 function ContentSection({
@@ -369,7 +470,7 @@ function ContentSection({
 function MetricsSection({ loading, spend, beacon, cron, postiz, work, compact }: { loading: boolean; spend: SpendResponse | null; beacon: BeaconResponse | null; cron: CronResponse | null; postiz: PostizResponse | null; work: WorkResponse; compact: boolean }) {
   if (loading) return <SectionCard title="Metrics" subtitle="Business pulse"><SkeletonRows rows={5} /></SectionCard>;
   const cards = [
-    ["OpenRouter", spend ? formatCurrency(spend.totals.weekly) : "--", spend ? `${formatCurrency(spend.totals.daily)} today · ${formatCurrency(spend.totals.monthly)} month` : "Spend feed unavailable", "#FF7D45"],
+    ["OpenRouter", spend ? formatCurrency(spend.totals.weekly) : "--", spend ? `${formatCurrency(spend.totals.daily)} today - ${formatCurrency(spend.totals.monthly)} month` : "Spend feed unavailable", "#FF7D45"],
     ["Beacon", beacon ? String(beacon.totalThoughts) : "--", beacon ? `${beacon.thisWeekThoughts} thoughts this week` : "Beacon feed unavailable", "#DC97FF"],
     ["Scheduled", postiz?.summary ? String(postiz.summary.scheduledThisWeek) : "--", "Postiz posts queued this week", "#60A5FA"],
     ["Published", postiz?.summary ? String(postiz.summary.publishedThisWeek) : "--", cron?.summary.errors ? `${cron.summary.errors} cron issues` : "Crons stable", cron?.summary.errors ? "#F87171" : "#4ADE80"],
@@ -381,7 +482,7 @@ function MetricsSection({ loading, spend, beacon, cron, postiz, work, compact }:
         <div className={`grid gap-3 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>{cards.map(([label, value, detail, tone]) => <div key={label} className="surface-soft rounded-[24px] p-4"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-3 text-2xl font-semibold" style={{ color: tone }}>{value}</p><p className="mt-2 text-xs leading-relaxed text-neutral-500">{detail}</p></div>)}</div>
         <div className="surface-soft rounded-[24px] p-4">
           <div className="mb-4 flex items-center justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Postiz</p><p className="mt-1 text-base font-medium text-white">Publishing activity</p></div><span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{postiz?.total || 0} posts</span></div>
-          {postiz?.summary ? <><div className="grid grid-cols-3 gap-3"><MetricBox label="Scheduled" value={String(postiz.summary.scheduledThisWeek)} /><MetricBox label="Published" value={String(postiz.summary.publishedThisWeek)} /><MetricBox label="Drafts" value={String(postiz.summary.draftCount)} /></div><div className="mt-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next scheduled</p><p className="mt-1 text-sm font-medium text-white">{postiz.summary.nextScheduled ? `${formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)} · ${postiz.summary.nextScheduled.channel}` : "No scheduled post this week"}</p></div></> : <p className="text-sm text-neutral-500">Postiz feed unavailable right now.</p>}
+          {postiz?.summary ? <><div className="grid grid-cols-3 gap-3"><MetricBox label="Scheduled" value={String(postiz.summary.scheduledThisWeek)} /><MetricBox label="Published" value={String(postiz.summary.publishedThisWeek)} /><MetricBox label="Drafts" value={String(postiz.summary.draftCount)} /></div><div className="mt-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next scheduled</p><p className="mt-1 text-sm font-medium text-white">{postiz.summary.nextScheduled ? `${formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)} - ${postiz.summary.nextScheduled.channel}` : "No scheduled post this week"}</p></div></> : <p className="text-sm text-neutral-500">Postiz feed unavailable right now.</p>}
         </div>
         <WorkQueuePanel work={work} />
       </div>
@@ -395,7 +496,7 @@ function WorkQueuePanel({ work }: { work: WorkResponse }) {
 }
 
 function WorkItemRow({ item }: { item: WorkItem }) {
-  return <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-3"><div className="flex flex-wrap items-center gap-2"><p className="min-w-0 flex-1 text-sm font-medium text-white">{item.title}</p><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getWorkStatusClasses(item.status)}`}>{item.status.replace("_", " ")}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(item.venture)}`}>{item.venture}</span></div>{item.description ? <p className="mt-2 text-sm leading-relaxed text-neutral-400">{item.description}</p> : null}<div className="mt-3 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500"><span>{AGENTS.find((agent) => agent.id === item.assignedTo)?.name || item.assignedTo}</span><span>Age {formatAge(item.createdAt)}</span><span>Updated {formatCentralDateTime(item.updatedAt)}</span></div></div>;
+  return <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-2.5 sm:p-3"><div className="flex flex-wrap items-center gap-2"><p className="min-w-0 flex-1 text-sm font-medium text-white">{item.title}</p><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getWorkStatusClasses(item.status)}`}>{item.status.replace("_", " ")}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(item.venture)}`}>{item.venture}</span></div>{item.description ? <p className="mt-2 text-sm leading-relaxed text-neutral-400">{item.description}</p> : null}<div className="mt-3 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500"><span>{AGENTS.find((agent) => agent.id === item.assignedTo)?.name || item.assignedTo}</span><span>Age {formatAge(item.createdAt)}</span><span>Updated {formatCentralDateTime(item.updatedAt)}</span></div></div>;
 }
 
 function SkeletonRows({ rows }: { rows: number }) {
@@ -406,6 +507,7 @@ function ErrorState({ message }: { message: string }) {
   return <div className="rounded-[24px] border border-rose-500/20 bg-rose-500/8 p-4 text-sm text-rose-200">{message}</div>;
 }
 
+function OverviewIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 11.5 12 5l8 6.5" /><path d="M6.5 10.5V19h11v-8.5" /><path d="M10 19v-5h4v5" /></svg>; }
 function SignalIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M5 19a7 7 0 0 1 14 0" /><path d="M8.5 15.5a3.5 3.5 0 0 1 7 0" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /></svg>; }
 function RobotIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="6" y="7" width="12" height="10" rx="3" /><path d="M12 3v4" /><circle cx="9.5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none" /></svg>; }
 function NotebookIcon() { return <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h5" /></svg>; }

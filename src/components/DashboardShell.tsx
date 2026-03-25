@@ -52,6 +52,11 @@ const tabMeta: Record<
   DashboardTab,
   { label: string; eyebrow: string; icon: (active: boolean) => ReactNode }
 > = {
+  dashboard: {
+    label: "Dashboard",
+    eyebrow: "Command overview",
+    icon: (active) => <ChartIcon active={active} />,
+  },
   season: {
     label: "Season",
     eyebrow: "Fiscal rhythm",
@@ -77,7 +82,7 @@ const tabMeta: Record<
 function normalizeTab(value: string | null): DashboardTab {
   return DASHBOARD_TABS.includes(value as DashboardTab)
     ? (value as DashboardTab)
-    : "season";
+    : "dashboard";
 }
 
 async function fetchResource<T>(url: string) {
@@ -155,7 +160,7 @@ export default function DashboardShell() {
   function handleTabChange(nextTab: DashboardTab) {
     const params = new URLSearchParams(searchParams.toString());
 
-    if (nextTab === "season") {
+    if (nextTab === "dashboard") {
       params.delete("tab");
     } else {
       params.set("tab", nextTab);
@@ -317,6 +322,20 @@ function renderTab({
 }) {
   if (tab === "season") {
     return <SeasonSection loading={loading} data={data.season} />;
+  }
+
+  if (tab === "dashboard") {
+    return (
+      <MetricsSection
+        loading={loading}
+        beacon={data.beacon}
+        spend={data.spend}
+        postiz={data.postiz}
+        cron={data.cron}
+        work={workData}
+        compact={false}
+      />
+    );
   }
 
   if (tab === "agents") {

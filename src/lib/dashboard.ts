@@ -1,6 +1,6 @@
 import { AGENTS, type AgentDef, type AgentSpend } from "@/lib/agents";
 
-export type DashboardTab = "season" | "agents" | "content" | "metrics";
+export type DashboardTab = "dashboard" | "season" | "agents" | "content" | "metrics";
 
 export interface SeasonResponse {
   season: {
@@ -216,6 +216,7 @@ export interface AgentSnapshot extends AgentDef {
 }
 
 export const DASHBOARD_TABS: DashboardTab[] = [
+  "dashboard",
   "season",
   "agents",
   "content",

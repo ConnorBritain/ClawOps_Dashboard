@@ -48,7 +48,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function RefreshButton() {
+export function RefreshButton({ compact = false }: { compact?: boolean }) {
   const { refresh, lastRefreshed, autoRefresh, setAutoRefresh } = useRefresh();
   const [spinning, setSpinning] = useState(false);
 
@@ -59,16 +59,16 @@ export function RefreshButton() {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
       <button
         onClick={() => setAutoRefresh(!autoRefresh)}
-        className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] transition-colors ${
+        className={`rounded-full border ${compact ? "px-2 py-1" : "px-2.5 py-1"} text-[10px] uppercase tracking-[0.16em] transition-colors ${
           autoRefresh
             ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
             : "border-white/[0.08] bg-black/20 text-neutral-500"
         }`}
       >
-        {autoRefresh ? "AUTO" : "MANUAL"}
+        {autoRefresh ? "AUTO" : compact ? "MAN" : "MANUAL"}
       </button>
       <button
         onClick={handleRefresh}
@@ -89,9 +89,7 @@ export function RefreshButton() {
           />
         </svg>
       </button>
-      <span className="text-[10px] text-neutral-600">
-        {lastRefreshed.toLocaleTimeString()}
-      </span>
+      {compact ? null : <span className="text-[10px] text-neutral-600">{lastRefreshed.toLocaleTimeString()}</span>}
     </div>
   );
 }

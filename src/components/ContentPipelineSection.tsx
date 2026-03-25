@@ -56,6 +56,11 @@ function driveIcon() {
   );
 }
 
+const selectClassName =
+  "ml-2 rounded-full border border-white/[0.12] bg-[#121212] px-3 py-1.5 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.02)] outline-none transition-colors focus:border-[#FF7D45]/28 focus:text-white";
+
+const selectStyle = { colorScheme: "dark" } as const;
+
 export function ContentPipelineSection({
   loading,
   content,
@@ -165,7 +170,8 @@ export function ContentPipelineSection({
             <select
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value)}
-              className="ml-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-neutral-300"
+              className={selectClassName}
+              style={selectStyle}
             >
               <option value="all">All types</option>
               {types.map((type) => (
@@ -340,7 +346,8 @@ export function ContentPipelineSection({
               <select
                 value={sourceFilter}
                 onChange={(event) => setSourceFilter(event.target.value)}
-                className="ml-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-neutral-300"
+                className={selectClassName}
+                style={selectStyle}
               >
                 <option>All</option>
                 {sources.map((source) => (
