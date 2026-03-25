@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Image from "next/image";
 import DashboardShell from "@/components/DashboardShell";
 import SeasonTracker from "@/components/SeasonTracker";
