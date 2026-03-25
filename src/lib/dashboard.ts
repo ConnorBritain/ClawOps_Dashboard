@@ -145,19 +145,66 @@ export interface ContentPipelineItem {
   venture: "PE" | "G2L" | "Pidgeon" | "Personal";
   status: ContentPipelineStatus;
   createdBy: string | null;
+  ownerAgent: string | null;
   driveLink: string | null;
   postizId: string | null;
   beehiivId: string | null;
+  blueprintSlotId: string | null;
+  canonicalUrl: string | null;
+  contentPreview: string | null;
+  channel: string | null;
   platform: string | null;
   season: number | null;
   week: number | null;
   notes: string | null;
+  scheduledAt: string | null;
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ContentPipelineResponse {
   items: ContentPipelineItem[];
+  fetchedAt?: string;
+  error?: string;
+}
+
+export type SeasonMatrixStatus =
+  | "not_started"
+  | "idea"
+  | "drafted"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "published";
+
+export interface SeasonMatrixSlot {
+  slotId: string;
+  season: number;
+  week: number;
+  venture: "PE" | "G2L" | "Pidgeon" | "Personal";
+  contentType: ContentPipelineType;
+  slotKey: string;
+  plannedTitle: string | null;
+  title: string | null;
+  theme: string | null;
+  templateGroup: string | null;
+  required: boolean;
+  targetCount: number;
+  platforms: string[];
+  sortOrder: number;
+  status: SeasonMatrixStatus;
+  contentId: string | null;
+  driveLink: string | null;
+  canonicalUrl: string | null;
+  ownerAgent: string | null;
+  scheduledAt: string | null;
+  publishedAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface SeasonMatrixResponse {
+  slots: SeasonMatrixSlot[];
   fetchedAt?: string;
   error?: string;
 }

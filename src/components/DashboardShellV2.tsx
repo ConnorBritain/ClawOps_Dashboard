@@ -19,11 +19,14 @@ import {
   type CronResponse,
   type DashboardTab,
   type PostizResponse,
+  type SeasonMatrixResponse,
+  type SeasonMatrixSlot,
   type SeasonResponse,
   type SpendResponse,
   type WorkItem,
   type WorkResponse,
 } from "@/lib/dashboard";
+import { SEASONS, SEASON_PATTERNS } from "@/lib/seasons";
 import {
   formatAge,
   formatCentralDateTime,
@@ -35,6 +38,7 @@ import { RefreshButton, useRefresh } from "@/components/RefreshProvider";
 
 interface DashboardData {
   season: SeasonResponse | null;
+  seasonMatrix: SeasonMatrixResponse | null;
   spend: SpendResponse | null;
   cron: CronResponse | null;
   work: WorkResponse | null;
@@ -111,9 +115,11 @@ export default function DashboardShellV2() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = normalizeTab(searchParams.get("tab"));
+  const [mobileTab, setMobileTab] = useState<DashboardTab>(activeTab);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData>({
     season: null,
+    seasonMatrix: null,
     spend: null,
     cron: null,
     work: null,
@@ -125,8 +131,9 @@ export default function DashboardShellV2() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [season, spend, cron, work, beacon, contentPipeline, postiz] = await Promise.all([
+      const [season, seasonMatrix, spend, cron, work, beacon, contentPipeline, postiz] = await Promise.all([
         fetchResource<SeasonResponse>("/api/season"),
+        fetchResource<SeasonMatrixResponse>("/api/season-matrix"),
         fetchResource<SpendResponse>("/api/spend"),
         fetchResource<CronResponse>("/api/cron"),
         fetchResource<WorkResponse>("/api/work"),
@@ -135,7 +142,7 @@ export default function DashboardShellV2() {
         fetchResource<PostizResponse>("/api/postiz"),
       ]);
       if (cancelled) return;
-      setData({ season, spend, cron, work, beacon, contentPipeline, postiz });
+      setData({ season, seasonMatrix, spend, cron, work, beacon, contentPipeline, postiz });
       setLoading(false);
     }
     setLoading(true);
@@ -145,7 +152,12 @@ export default function DashboardShellV2() {
     };
   }, [refreshKey]);
 
+  useEffect(() => {
+    setMobileTab(activeTab);
+  }, [activeTab]);
+
   function handleTabChange(nextTab: DashboardTab) {
+    setMobileTab(nextTab);
     const params = new URLSearchParams(searchParams.toString());
     if (nextTab === "dashboard") params.delete("tab");
     else params.set("tab", nextTab);
@@ -160,26 +172,14 @@ export default function DashboardShellV2() {
   const workData = data.work || EMPTY_WORK;
 
   return (
-    <main className="mx-auto min-h-screen max-w-[1440px] px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-10">
+    <>
+      <main className="mx-auto hidden min-h-screen max-w-[1440px] px-4 pb-10 pt-4 sm:px-6 sm:pt-6 lg:block lg:px-8">
       <div className="hidden lg:block">
         <DesktopOverviewHeader data={data} work={workData} />
       </div>
 
-      <div className="lg:hidden">
-        {activeTab === "dashboard" ? (
-          <div className="dashboard-fade">
-            <MobileOverviewSection loading={loading} data={data} work={workData} />
-          </div>
-        ) : (
-          <>
-            <TabHeading activeTab={activeTab} />
-            <div className="dashboard-fade">{renderTab(activeTab, loading, data, agentSnapshots, workData)}</div>
-          </>
-        )}
-      </div>
-
       <div className="hidden gap-4 lg:grid lg:grid-cols-12">
-        <div className="col-span-7"><SeasonSection loading={loading} season={data.season} /></div>
+        <div className="col-span-7"><SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} /></div>
         <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={workData} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
         <div className="col-span-5"><ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} /></div>
@@ -189,17 +189,36 @@ export default function DashboardShellV2() {
         <p>Pattern Engine LLC - ops.patternengine.ai</p>
         <p>Connor coffee-check ready at 375px</p>
       </footer>
+      </main>
 
-      <MobileTabBar activeTab={activeTab} onChange={handleTabChange} />
-    </main>
+      <main className="lg:hidden">
+        <div className="h-[100dvh] overflow-hidden px-4 pt-4">
+          <div className="h-[calc(100dvh-env(safe-area-inset-bottom))] overflow-hidden">
+            <div className="h-[calc(100dvh-88px-env(safe-area-inset-bottom))] overflow-y-auto pb-6">
+              {mobileTab === "dashboard" ? (
+                <div className="dashboard-fade pb-5">
+                  <MobileOverviewSection loading={loading} data={data} work={workData} />
+                </div>
+              ) : (
+                <div className="dashboard-fade pb-5">
+                  <TabHeading activeTab={mobileTab} />
+                  {renderTab(mobileTab, loading, data, agentSnapshots, workData)}
+                </div>
+              )}
+            </div>
+            <MobileTabBar activeTab={mobileTab} onChange={handleTabChange} />
+          </div>
+        </div>
+      </main>
+    </>
   );
 }
 
 function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, agents: AgentSnapshot[], work: WorkResponse) {
   if (tab === "dashboard") return <MobileOverviewSection loading={loading} data={data} work={work} />;
-  if (tab === "season") return <SeasonSection loading={loading} season={data.season} />;
+  if (tab === "season") return <SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
-  if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} />;
+  if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} showHeader={false} />;
   return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} compact={false} />;
 }
 
@@ -325,12 +344,12 @@ function HeaderMetric({ label, value, tone }: { label: string; value: string; to
 }
 
 function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
-  return <div className="mb-4"><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[2rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
+  return <div className="mb-4 px-1"><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[2rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
 }
 
 function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChange: (tab: DashboardTab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#111111]/92 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur lg:hidden">
+    <nav className="border-t border-white/[0.06] bg-[#111111]/96 px-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 backdrop-blur">
       <div className="mx-auto flex max-w-md items-center gap-1">
         {DASHBOARD_TABS.map((tab) => (
           <button key={tab} type="button" onClick={() => onChange(tab)} className={cx("flex min-h-[58px] flex-1 flex-col items-center justify-center rounded-[18px] px-1 text-[10px] transition-all", tab === activeTab ? "border border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]" : "text-neutral-500")}>
@@ -347,20 +366,92 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle: s
   return <section className="card p-4 sm:p-5"><div className="mb-4"><p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">{subtitle}</p><h3 className="mt-1 text-lg font-semibold text-white">{title}</h3></div>{children}</section>;
 }
 
-function SeasonSection({ loading, season }: { loading: boolean; season: SeasonResponse | null }) {
+const MATRIX_VENTURES: SeasonMatrixSlot["venture"][] = ["PE", "G2L", "Pidgeon", "Personal"];
+
+const CONTENT_TYPE_META: Record<SeasonMatrixSlot["contentType"], { label: string; compact: string }> = {
+  pattern_card: { label: "Pattern Card", compact: "Pattern" },
+  build_note: { label: "Build Note", compact: "Build" },
+  marginalia: { label: "Marginalia", compact: "Marginalia" },
+  currents: { label: "Currents", compact: "Currents" },
+  challenge_lab: { label: "Challenge Lab", compact: "Challenge" },
+  social_post: { label: "Social Posts", compact: "Social" },
+  newsletter: { label: "Newsletter", compact: "Newsletter" },
+  heygen_video: { label: "HeyGen Video", compact: "Video" },
+  skool_post: { label: "Skool Post", compact: "Skool" },
+};
+
+function matrixStatusMeta(status: SeasonMatrixSlot["status"]) {
+  switch (status) {
+    case "published":
+      return { label: "Published", dot: "#4ADE80", classes: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
+    case "scheduled":
+      return { label: "Scheduled", dot: "#60A5FA", classes: "border-sky-500/20 bg-sky-500/10 text-sky-300" };
+    case "approved":
+      return { label: "Approved", dot: "#60A5FA", classes: "border-sky-500/20 bg-sky-500/10 text-sky-300" };
+    case "review":
+      return { label: "Review", dot: "#DC97FF", classes: "border-violet-500/20 bg-violet-500/10 text-violet-300" };
+    case "drafted":
+      return { label: "Drafted", dot: "#FBBF24", classes: "border-amber-500/20 bg-amber-500/10 text-amber-300" };
+    case "idea":
+      return { label: "Idea", dot: "#777777", classes: "border-neutral-500/20 bg-neutral-500/10 text-neutral-300" };
+    default:
+      return { label: "Not started", dot: "#555555", classes: "border-neutral-500/20 bg-neutral-500/10 text-neutral-400" };
+  }
+}
+
+function weekSummaryLabel(selectedSeason: number, week: number) {
+  return SEASON_PATTERNS[selectedSeason]?.[week - 1]?.name || `Week ${week}`;
+}
+
+function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; season: SeasonResponse | null; seasonMatrix: SeasonMatrixResponse | null }) {
+  const currentSeasonNumber = season?.season.number || 1;
+  const currentWeek = season?.weekInSeason && season.weekInSeason > 0 ? season.weekInSeason : 1;
+  const [selectedSeason, setSelectedSeason] = useState(currentSeasonNumber);
+  const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+
+  useEffect(() => {
+    setSelectedSeason(currentSeasonNumber);
+  }, [currentSeasonNumber]);
+
+  useEffect(() => {
+    setSelectedWeek(currentWeek);
+  }, [currentWeek]);
+
   if (loading) return <SectionCard title="Season" subtitle="Fiscal rhythm"><SkeletonRows rows={4} /></SectionCard>;
   if (!season) return <SectionCard title="Season" subtitle="Fiscal rhythm"><ErrorState message="Season data is unavailable right now." /></SectionCard>;
 
   const preLaunch = season.weekInSeason === 0;
-  const labels = ["Signal", "Systems", "Machines", "Stewardship"];
+  const slots = seasonMatrix?.slots || [];
+  const seasonSlots = slots.filter((slot) => slot.season === selectedSeason);
+  const seasonPatterns = SEASON_PATTERNS[selectedSeason] || [];
+  const activeWeek = Math.min(Math.max(selectedWeek, 1), 13);
+  const weekSlots = seasonSlots
+    .filter((slot) => slot.week === activeWeek)
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+  const startedCount = seasonSlots.filter((slot) => slot.status !== "not_started").length;
+  const publishedCount = seasonSlots.filter((slot) => slot.status === "published").length;
+  const filledWeeks = new Set(seasonSlots.filter((slot) => slot.status !== "not_started").map((slot) => slot.week)).size;
+
+  const weekCards = Array.from({ length: 13 }, (_, index) => {
+    const week = index + 1;
+    const weekItems = seasonSlots.filter((slot) => slot.week === week);
+    const done = weekItems.filter((slot) => slot.status === "published").length;
+    const live = weekItems.filter((slot) => slot.status !== "not_started").length;
+    return {
+      week,
+      title: seasonPatterns[index]?.name || `Week ${week}`,
+      summary: weekItems.length ? `${live}/${weekItems.length} active` : "Template only",
+      done,
+    };
+  });
 
   return (
     <SectionCard title="Season" subtitle={preLaunch ? "Pre-launch countdown" : "Fiscal rhythm"}>
       <div className="surface-strong rounded-[26px] p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xl">
             <p className="text-sm font-medium text-[#FFB28F]">Season {preLaunch ? "1: Signal" : `${season.season.number}: ${season.season.name}`}</p>
-            <h4 className="mt-1 text-[2.35rem] font-semibold leading-[0.96] text-white sm:text-[2.35rem]">
+            <h4 className="mt-1 text-[2rem] font-semibold leading-[0.96] text-white sm:text-[2.35rem]">
               {preLaunch ? "Launch sequence running" : `Week ${season.weekInSeason} of 13`}
             </h4>
             <p className="mt-2 text-sm leading-relaxed text-neutral-400">
@@ -368,8 +459,8 @@ function SeasonSection({ loading, season }: { loading: boolean; season: SeasonRe
             </p>
             <p className="mt-3 text-sm text-neutral-500">Pattern machines are here. Wisdom is optional.</p>
           </div>
-          <div className="rounded-[28px] border border-white/10 bg-black/25 px-5 py-4 text-center sm:min-w-[134px]">
-            <p className="text-7xl font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-7xl">{season.daysUntilNextSeason}</p>
+          <div className="rounded-[24px] border border-white/10 bg-black/25 px-4 py-3 text-center sm:min-w-[134px] sm:px-5 sm:py-4">
+            <p className="text-5xl font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-7xl">{season.daysUntilNextSeason}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-neutral-500">{preLaunch ? "days" : "to next"}</p>
           </div>
         </div>
@@ -380,14 +471,124 @@ function SeasonSection({ loading, season }: { loading: boolean; season: SeasonRe
         </div>
       </div>
 
-      <div className="mt-4 border-t border-white/[0.05] pt-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {labels.map((label, index) => (
-            <div key={label} className={cx("surface-soft rounded-[22px] px-3 py-3", index === 0 && "border-[#FF7D45]/16 bg-[#FF7D45]/[0.05]")}>
-              <div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: index === 0 ? "#FF7D45" : "rgba(255,255,255,0.2)" }} /><p className="text-xs font-medium text-white">{label}</p></div>
-              <p className="text-[11px] text-neutral-500">{index === 0 ? "Next up" : "Later in cycle"}</p>
-            </div>
+      <div className="mt-4 space-y-4 border-t border-white/[0.05] pt-4">
+        <div className="flex flex-wrap gap-2">
+          {SEASONS.map((entry) => (
+            <button
+              key={entry.number}
+              type="button"
+              onClick={() => {
+                setSelectedSeason(entry.number);
+                setSelectedWeek(entry.number === currentSeasonNumber ? currentWeek : 1);
+              }}
+              className={cx(
+                "rounded-full border px-3 py-1.5 text-xs transition-colors",
+                selectedSeason === entry.number
+                  ? "border-[#FF7D45]/20 bg-[#FF7D45]/10 text-[#FFB28F]"
+                  : "border-white/[0.08] bg-black/20 text-neutral-400"
+              )}
+            >
+              {entry.name}
+            </button>
           ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+          <OverviewMiniCard label="Planned slots" value={String(seasonSlots.length || 0)} detail={`Season ${selectedSeason} blueprint`} />
+          <OverviewMiniCard label="In motion" value={String(startedCount)} detail={`${filledWeeks} week${filledWeeks === 1 ? "" : "s"} touched`} />
+          <OverviewMiniCard label="Published" value={String(publishedCount)} detail="Green cells complete" />
+        </div>
+
+        <div className="overflow-x-auto pb-1">
+          <div className="flex min-w-max gap-2">
+            {weekCards.map((weekCard) => (
+              <button
+                key={weekCard.week}
+                type="button"
+                onClick={() => setSelectedWeek(weekCard.week)}
+                className={cx(
+                  "surface-soft w-[108px] rounded-[20px] px-3 py-3 text-left transition-colors",
+                  activeWeek === weekCard.week && "border-[#FF7D45]/16 bg-[#FF7D45]/[0.05]"
+                )}
+              >
+                <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">W{weekCard.week}</p>
+                <p className="mt-2 text-sm font-medium text-white">{weekCard.title}</p>
+                <p className="mt-1 text-[11px] text-neutral-500">{weekCard.summary}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="surface-soft rounded-[24px] p-4">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Week {activeWeek}</p>
+              <p className="mt-1 text-lg font-semibold text-white">{weekSummaryLabel(selectedSeason, activeWeek)}</p>
+            </div>
+            <p className="text-sm text-neutral-500">
+              {weekSlots.length ? `${weekSlots.length} planned slots` : "Blueprint not seeded for this week yet"}
+            </p>
+          </div>
+
+          {weekSlots.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {MATRIX_VENTURES.map((venture) => {
+                const ventureSlots = weekSlots.filter((slot) => slot.venture === venture);
+                if (!ventureSlots.length) return null;
+
+                return (
+                  <div key={venture} className="rounded-[20px] border border-white/[0.06] bg-black/20 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm font-medium text-white">{venture}</p>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(venture)}`}>{venture}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {ventureSlots.map((slot) => {
+                        const status = matrixStatusMeta(slot.status);
+                        const href = slot.canonicalUrl || slot.driveLink;
+                        return (
+                          <a
+                            key={slot.slotId}
+                            href={href || undefined}
+                            target={href ? "_blank" : undefined}
+                            rel={href ? "noreferrer" : undefined}
+                            className={cx(
+                              "block rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-3 transition-colors",
+                              href && "hover:border-white/[0.12] hover:bg-white/[0.03]"
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: status.dot }} />
+                                  <p className="text-sm font-medium text-white">{CONTENT_TYPE_META[slot.contentType].label}</p>
+                                  {slot.targetCount > 1 ? (
+                                    <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+                                      {slot.targetCount}x
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-2 text-sm leading-relaxed text-neutral-300">{slot.title || slot.plannedTitle || "Planned slot"}</p>
+                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+                                  <span className={`rounded-full border px-2 py-0.5 ${status.classes}`}>{status.label}</span>
+                                  {slot.ownerAgent ? <span>{slot.ownerAgent}</span> : null}
+                                  {slot.platforms.length ? <span>{slot.platforms.join(", ")}</span> : null}
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-4 text-sm text-neutral-500">
+              No blueprint rows are seeded for Season {selectedSeason}, Week {activeWeek} yet.
+            </div>
+          )}
         </div>
       </div>
     </SectionCard>
@@ -451,11 +652,13 @@ function ContentSection({
   content,
   beacon,
   postiz,
+  showHeader,
 }: {
   loading: boolean;
   content: ContentPipelineResponse | null;
   beacon: BeaconResponse | null;
   postiz: PostizResponse | null;
+  showHeader?: boolean;
 }) {
   return (
     <ContentPipelineSection
@@ -463,6 +666,7 @@ function ContentSection({
       content={content}
       beacon={beacon}
       postiz={postiz}
+      showHeader={showHeader}
     />
   );
 }
@@ -481,8 +685,8 @@ function MetricsSection({ loading, spend, beacon, cron, postiz, work, compact }:
       <div className="space-y-4">
         <div className={`grid gap-3 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>{cards.map(([label, value, detail, tone]) => <div key={label} className="surface-soft rounded-[24px] p-4"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-3 text-2xl font-semibold" style={{ color: tone }}>{value}</p><p className="mt-2 text-xs leading-relaxed text-neutral-500">{detail}</p></div>)}</div>
         <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex items-center justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Postiz</p><p className="mt-1 text-base font-medium text-white">Publishing activity</p></div><span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{postiz?.total || 0} posts</span></div>
-          {postiz?.summary ? <><div className="grid grid-cols-3 gap-3"><MetricBox label="Scheduled" value={String(postiz.summary.scheduledThisWeek)} /><MetricBox label="Published" value={String(postiz.summary.publishedThisWeek)} /><MetricBox label="Drafts" value={String(postiz.summary.draftCount)} /></div><div className="mt-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next scheduled</p><p className="mt-1 text-sm font-medium text-white">{postiz.summary.nextScheduled ? `${formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)} - ${postiz.summary.nextScheduled.channel}` : "No scheduled post this week"}</p></div></> : <p className="text-sm text-neutral-500">Postiz feed unavailable right now.</p>}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Postiz</p><p className="mt-1 text-base font-medium text-white">Publishing activity</p></div><span className="w-fit rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{postiz?.total || 0} posts</span></div>
+          {postiz?.summary ? <><div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><MetricBox label="Scheduled" value={String(postiz.summary.scheduledThisWeek)} /><MetricBox label="Published" value={String(postiz.summary.publishedThisWeek)} /><div className="col-span-2 sm:col-span-1"><MetricBox label="Drafts" value={String(postiz.summary.draftCount)} /></div></div><div className="mt-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next scheduled</p><p className="mt-1 text-sm font-medium text-white">{postiz.summary.nextScheduled ? `${formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)} - ${postiz.summary.nextScheduled.channel}` : "No scheduled post this week"}</p></div></> : <p className="text-sm text-neutral-500">Postiz feed unavailable right now.</p>}
         </div>
         <WorkQueuePanel work={work} />
       </div>
@@ -492,11 +696,11 @@ function MetricsSection({ loading, spend, beacon, cron, postiz, work, compact }:
 
 function WorkQueuePanel({ work }: { work: WorkResponse }) {
   const ordered = Object.entries(work.byAgent).sort(([a], [b]) => a.localeCompare(b));
-  return <div className="surface-soft rounded-[24px] p-4"><div className="mb-4 flex items-center justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Work queue</p><p className="mt-1 text-base font-medium text-white">Active items grouped by agent</p></div><span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{work.total} open</span></div>{ordered.length ? <div className="space-y-3">{ordered.map(([agentId, items]) => <div key={agentId} className="rounded-[22px] border border-white/[0.06] bg-black/20 p-3"><div className="mb-3 flex items-center justify-between"><p className="text-sm font-medium text-white">{AGENTS.find((agent) => agent.id === agentId)?.name || agentId}</p><span className="text-xs text-neutral-500">{items.length} item{items.length === 1 ? "" : "s"}</span></div><div className="space-y-2">{items.map((item) => <WorkItemRow key={item.id} item={item} />)}</div></div>)}</div> : <p className="text-sm text-neutral-500">No active work items in Beacon right now.</p>}</div>;
+  return <div className="surface-soft rounded-[24px] p-4"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Work queue</p><p className="mt-1 text-base font-medium text-white">Active items grouped by agent</p></div><span className="w-fit rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">{work.total} open</span></div>{ordered.length ? <div className="space-y-3">{ordered.map(([agentId, items]) => <div key={agentId} className="rounded-[22px] border border-white/[0.06] bg-black/20 p-3"><div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-medium text-white">{AGENTS.find((agent) => agent.id === agentId)?.name || agentId}</p><span className="text-xs text-neutral-500">{items.length} item{items.length === 1 ? "" : "s"}</span></div><div className="space-y-2">{items.map((item) => <WorkItemRow key={item.id} item={item} />)}</div></div>)}</div> : <p className="text-sm text-neutral-500">No active work items in Beacon right now.</p>}</div>;
 }
 
 function WorkItemRow({ item }: { item: WorkItem }) {
-  return <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-2.5 sm:p-3"><div className="flex flex-wrap items-center gap-2"><p className="min-w-0 flex-1 text-sm font-medium text-white">{item.title}</p><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getWorkStatusClasses(item.status)}`}>{item.status.replace("_", " ")}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(item.venture)}`}>{item.venture}</span></div>{item.description ? <p className="mt-2 text-sm leading-relaxed text-neutral-400">{item.description}</p> : null}<div className="mt-3 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500"><span>{AGENTS.find((agent) => agent.id === item.assignedTo)?.name || item.assignedTo}</span><span>Age {formatAge(item.createdAt)}</span><span>Updated {formatCentralDateTime(item.updatedAt)}</span></div></div>;
+  return <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-2.5 sm:p-3"><div className="flex flex-col gap-2"><p className="text-sm font-medium leading-relaxed text-white">{item.title}</p><div className="flex flex-wrap gap-2"><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getWorkStatusClasses(item.status)}`}>{item.status.replace("_", " ")}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(item.venture)}`}>{item.venture}</span></div></div>{item.description ? <p className="mt-3 text-sm leading-relaxed text-neutral-400">{item.description}</p> : null}<div className="mt-3 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500"><span>{AGENTS.find((agent) => agent.id === item.assignedTo)?.name || item.assignedTo}</span><span>Age {formatAge(item.createdAt)}</span><span>Updated {formatCentralDateTime(item.updatedAt)}</span></div></div>;
 }
 
 function SkeletonRows({ rows }: { rows: number }) {

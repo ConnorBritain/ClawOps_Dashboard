@@ -66,11 +66,13 @@ export function ContentPipelineSection({
   content,
   beacon,
   postiz,
+  showHeader = true,
 }: {
   loading: boolean;
   content: ContentPipelineResponse | null;
   beacon: BeaconResponse | null;
   postiz: PostizResponse | null;
+  showHeader?: boolean;
 }) {
   const [venture, setVenture] = useState<(typeof VENTURES)[number]>("PE");
   const [socialVenture, setSocialVenture] = useState<(typeof VENTURES)[number]>("G2L");
@@ -111,10 +113,12 @@ export function ContentPipelineSection({
   if (loading) {
     return (
       <section className="card">
-        <div className="mb-4">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
-          <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
-        </div>
+        {showHeader ? (
+          <div className="mb-4">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
+            <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
+          </div>
+        ) : null}
         <div className="space-y-3">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="h-20 animate-pulse rounded-[24px] border border-white/[0.06] bg-white/[0.03]" />
@@ -126,18 +130,20 @@ export function ContentPipelineSection({
 
   return (
     <section className="card">
-      <div className="mb-4">
-        <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
-        <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
-      </div>
+      {showHeader ? (
+        <div className="mb-4">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
+          <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         <div className="surface-strong rounded-[24px] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Content pipeline</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Pipeline</p>
               <p className="mt-1 text-base font-medium text-white">
-                Real pipeline state from Supabase across ventures and formats.
+                Live publishing state across ventures and formats.
               </p>
             </div>
             <span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">
@@ -235,7 +241,7 @@ export function ContentPipelineSection({
         <div className="surface-soft rounded-[24px] p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Social posts</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Social</p>
               <p className="mt-1 text-base font-medium text-white">Venture-specific social queue</p>
             </div>
             <a
@@ -338,7 +344,7 @@ export function ContentPipelineSection({
         <div className="surface-soft rounded-[24px] p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Beacon feed</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Beacon</p>
               <p className="mt-1 text-base font-medium text-white">Recent activity</p>
             </div>
             <label className="text-xs text-neutral-500">
