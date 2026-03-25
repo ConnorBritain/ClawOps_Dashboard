@@ -918,7 +918,7 @@ function seasonSlotChannels(slot: SeasonMatrixSlot) {
   }
 
   if (slot.contentType === "newsletter") {
-    return slot.venture === "Pidgeon" ? ["Dispatch"] : ["Newsletter"];
+    return ["Beehiiv"];
   }
 
   if (slot.contentType === "skool_post" || slot.contentType === "challenge_lab") {
@@ -967,8 +967,6 @@ function channelBadgeMeta(channel: string) {
       return { mono: "TT", classes: "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" };
     case "YouTube":
       return { mono: "YT", classes: "border-rose-500/20 bg-rose-500/10 text-rose-300" };
-    case "Dispatch":
-      return { mono: "D", classes: "border-white/[0.08] bg-white/[0.03] text-neutral-300" };
     default:
       return { mono: channel.slice(0, 1).toUpperCase(), classes: "border-white/[0.08] bg-white/[0.03] text-neutral-300" };
   }
