@@ -1,3 +1,4 @@
+import Image from "next/image";
 import SeasonTracker from "@/components/SeasonTracker";
 import OpenRouterSpend from "@/components/OpenRouterSpend";
 import ContentStatus from "@/components/ContentStatus";
@@ -14,10 +15,13 @@ export default function Home() {
         <header className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-2xl"
-                   style={{ background: "linear-gradient(135deg, #FF7D45, #DC97FF)" }}>
-                🦅
-              </div>
+              <Image
+                src="/clawops-logo.png"
+                alt="ClawOps"
+                width={40}
+                height={40}
+                className="rounded-lg"
+              />
               <div>
                 <h1 className="text-xl font-bold text-white">
                   ClawOps Dashboard

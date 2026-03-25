@@ -48,6 +48,7 @@ export default function SeasonTracker() {
   }
 
   const progressPercent = Math.round(state.seasonProgress * 100);
+  const isPreLaunch = state.weekInSeason === 0;
 
   return (
     <div className="card">
@@ -57,17 +58,25 @@ export default function SeasonTracker() {
           <SeasonIcon name={state.season.name} />
           <div>
             <h2 className="text-lg font-semibold text-white">
-              Season {state.season.number}: {state.season.name}
+              {isPreLaunch
+                ? "Season 1: Signal — Launching Soon"
+                : `Season ${state.season.number}: ${state.season.name}`}
             </h2>
             <p className="text-sm text-neutral-400">
-              Year {state.seasonYear} · Week {state.weekInSeason} of 13
+              {isPreLaunch
+                ? `Year 1 · Starts April 1, 2026`
+                : `Year ${state.seasonYear} · Week ${state.weekInSeason} of 13`}
             </p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-sm text-neutral-500">Next season</p>
-          <p className="text-sm font-medium" style={{ color: "#DC97FF" }}>
-            {state.nextSeasonName} in {state.daysUntilNextSeason}d
+          <p className="text-sm text-neutral-500">
+            {isPreLaunch ? "Countdown" : "Next season"}
+          </p>
+          <p className="text-sm font-medium" style={{ color: isPreLaunch ? "#FF7D45" : "#DC97FF" }}>
+            {isPreLaunch
+              ? `${state.daysUntilNextSeason}d until launch`
+              : `${state.nextSeasonName} in ${state.daysUntilNextSeason}d`}
           </p>
         </div>
       </div>

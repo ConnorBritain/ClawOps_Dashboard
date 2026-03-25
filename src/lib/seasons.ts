@@ -6,8 +6,8 @@
  * G2L Challenge Labs run biweekly (7 per season).
  */
 
-// Season 1 starts first Monday of 2026
-const YEAR_ONE_START = new Date("2026-01-05T00:00:00-06:00"); // CST
+// Season 1 starts April 1, 2026 (both PE and G2L)
+const YEAR_ONE_START = new Date("2026-04-01T00:00:00-05:00"); // CDT
 
 export interface Season {
   number: number; // 1-4
@@ -206,9 +206,9 @@ export function getSeasonState(now: Date = new Date()): SeasonState {
   const SEASON_DAYS = 91;
   const YEAR_DAYS = SEASON_DAYS * 4; // 364 days
 
-  // Handle dates before Year 1
+  // Handle dates before Year 1 — show countdown to launch
   if (totalDays < 0) {
-    return getDefaultState();
+    return getPreLaunchState(now);
   }
 
   // Which year cycle and day within the year
@@ -273,10 +273,13 @@ export function getSeasonState(now: Date = new Date()): SeasonState {
   };
 }
 
-function getDefaultState(): SeasonState {
+function getPreLaunchState(now: Date): SeasonState {
+  const daysUntilLaunch = Math.ceil(
+    (YEAR_ONE_START.getTime() - now.getTime()) / 86400000
+  );
   return {
     season: SEASONS[0],
-    seasonYear: 0,
+    seasonYear: 1,
     weekInSeason: 0,
     weekInYear: 0,
     pattern: SIGNAL_PATTERNS[0],
@@ -284,8 +287,8 @@ function getDefaultState(): SeasonState {
     challengeWeekType: "challenge",
     challengeNumber: 1,
     seasonProgress: 0,
-    daysUntilNextSeason: 0,
-    nextSeasonName: "Systems",
+    daysUntilNextSeason: daysUntilLaunch,
+    nextSeasonName: "Signal",
     seasonStartDate: YEAR_ONE_START,
     seasonEndDate: new Date(YEAR_ONE_START.getTime() + 91 * 86400000),
   };

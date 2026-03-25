@@ -56,7 +56,7 @@ export default function BusinessMetrics() {
     return (
       <div className="card animate-pulse">
         <div className="h-6 bg-white/5 rounded w-48 mb-4" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 bg-white/5 rounded" />
           ))}
@@ -108,11 +108,11 @@ export default function BusinessMetrics() {
         📊 Business Metrics
       </h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {metrics.map((m) => (
           <div
             key={m.label}
-            className="bg-white/[0.03] rounded-lg p-4 border border-white/[0.06] hover:border-white/[0.1] transition-colors"
+            className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.06] hover:border-white/[0.1] transition-colors"
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="text-base">{m.icon}</span>
@@ -120,7 +120,7 @@ export default function BusinessMetrics() {
                 {m.label}
               </span>
             </div>
-            <p className="text-2xl font-bold" style={{ color: m.color }}>
+            <p className="text-xl font-bold" style={{ color: m.color }}>
               {m.value}
             </p>
             {m.sub && (
