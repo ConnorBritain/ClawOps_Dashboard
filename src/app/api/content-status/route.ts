@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCentralWeekStart } from "@/lib/time";
 
 export const revalidate = 300; // 5 min
 
@@ -20,12 +21,7 @@ export async function GET() {
   try {
     if (SUPABASE_URL && SUPABASE_KEY) {
       // Get this week's Monday
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - mondayOffset);
-      monday.setHours(0, 0, 0, 0);
+      const monday = getCentralWeekStart();
 
       // Search for content-related thoughts
       const url = new URL(`${SUPABASE_URL}/rest/v1/thoughts`);
@@ -84,8 +80,18 @@ export async function GET() {
     }
 
     // Ensure all content types have an entry (even if not-started)
-    const types = ["pattern-card", "currents", "challenge-lab"] as const;
-    const labels = { "pattern-card": "Pattern Card", currents: "Currents Newsletter", "challenge-lab": "Challenge Lab" };
+    const types = [
+      "pattern-card",
+      "currents",
+      "challenge-lab",
+      "build-note",
+    ] as const;
+    const labels = {
+      "pattern-card": "Pattern Card",
+      currents: "Currents Newsletter",
+      "challenge-lab": "Challenge Lab",
+      "build-note": "Build Note",
+    };
 
     for (const type of types) {
       if (!contentItems.find((c) => c.type === type)) {

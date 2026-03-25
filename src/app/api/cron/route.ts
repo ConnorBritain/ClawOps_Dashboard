@@ -117,22 +117,22 @@ export async function GET() {
 
 function getFallbackData() {
   const jobs: CronSummary[] = [
-    { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", enabled: true, schedule: "0 21 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 44368, consecutiveErrors: 0 },
-    { id: "dahlia-morning", agentId: "dahlia", name: "Morning Orchestrator", enabled: true, schedule: "30 6 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 87252, consecutiveErrors: 0 },
-    { id: "dahlia-content", agentId: "dahlia", name: "Weekly Content Check", enabled: true, schedule: "0 9 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", enabled: true, schedule: "0 19 * * 0", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
     { id: "repo-sync", agentId: "dahlia", name: "Repo Sync", enabled: true, schedule: "0 5 * * *", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 28767, consecutiveErrors: 0 },
-    { id: "cyrus-g2l-work", agentId: "cyrus-g2l", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 23472, consecutiveErrors: 0 },
-    { id: "cyrus-pidgeon-work", agentId: "cyrus-pidgeon", name: "Work Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 16537, consecutiveErrors: 0 },
-    { id: "echo-pe-weekly", agentId: "echo-pe", name: "Weekly Plan", enabled: true, schedule: "0 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "echo-pe-midweek", agentId: "echo-pe", name: "Mid-week Check", enabled: true, schedule: "0 10 * * 3", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Plan", enabled: true, schedule: "30 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents", enabled: true, schedule: "0 9 * * 2", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 165466, consecutiveErrors: 0 },
-    { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", enabled: true, schedule: "0 15 * * 5", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
-    { id: "echo-pidgeon-newsletter", agentId: "echo-pidgeon", name: "Newsletter", enabled: true, schedule: "0 10 1-7,15-21 * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "dahlia-morning", agentId: "dahlia", name: "Morning Orchestrator", enabled: true, schedule: "30 6 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 87252, consecutiveErrors: 0 },
+    { id: "dahlia-weekly-calendar", agentId: "dahlia", name: "Weekly Content Calendar", enabled: true, schedule: "0 9 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", enabled: true, schedule: "0 21 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 44368, consecutiveErrors: 0 },
+    { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", enabled: true, schedule: "0 19 * * 0", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
     { id: "enzo-monday", agentId: "enzo", name: "Monday Check-in", enabled: true, schedule: "0 7 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Queue Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 28767, consecutiveErrors: 0 },
+    { id: "cyrus-g2l-work", agentId: "cyrus-g2l", name: "Work Queue Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 23472, consecutiveErrors: 0 },
+    { id: "cyrus-pidgeon-work", agentId: "cyrus-pidgeon", name: "Work Queue Check", enabled: true, schedule: "0 8 * * 1-5", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 16537, consecutiveErrors: 0 },
+    { id: "echo-g2l-currents", agentId: "echo-g2l", name: "Currents Newsletter", enabled: true, schedule: "0 9 * * 2", lastRunAt: null, lastStatus: "ok", nextRunAt: null, lastDurationMs: 165466, consecutiveErrors: 0 },
+    { id: "echo-pe-weekly", agentId: "echo-pe", name: "Weekly Content Plan", enabled: true, schedule: "0 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-pe-midweek", agentId: "echo-pe", name: "Mid-week Check", enabled: true, schedule: "0 10 * * 3", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-g2l-challenge", agentId: "echo-g2l", name: "Challenge Lab Plan", enabled: true, schedule: "30 10 * * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-pidgeon-newsletter", agentId: "echo-pidgeon", name: "Newsletter Check", enabled: true, schedule: "0 10 1-7,15-21 * 1", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
     { id: "enzo-thursday", agentId: "enzo", name: "Thursday Pulse", enabled: true, schedule: "0 12 * * 4", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
+    { id: "echo-g2l-friday", agentId: "echo-g2l", name: "Friday Recap", enabled: true, schedule: "0 15 * * 5", lastRunAt: null, lastStatus: null, nextRunAt: null, lastDurationMs: null, consecutiveErrors: 0 },
   ];
 
   const byAgent: Record<string, CronSummary[]> = {};

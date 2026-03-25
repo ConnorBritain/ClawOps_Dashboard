@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCentralWeekStart } from "@/lib/time";
 
 export const revalidate = 300; // 5 min cache
 
@@ -35,12 +36,7 @@ export async function GET() {
     });
 
     // Thoughts this week (since Monday 00:00 CT)
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - mondayOffset);
-    monday.setHours(0, 0, 0, 0);
+    const monday = getCentralWeekStart();
 
     const thisWeek = await supabaseQuery("thoughts", {
       select: "id",

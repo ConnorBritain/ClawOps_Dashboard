@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCentralWeekStart } from "@/lib/time";
 
 export const revalidate = 900; // 15 min cache
 
@@ -21,7 +22,7 @@ export async function GET() {
   try {
     const res = await fetch(`${POSTIZ_API_URL}/posts?limit=20`, {
       headers: {
-        Authorization: `Bearer ${POSTIZ_API_KEY}`,
+        Authorization: POSTIZ_API_KEY,
         "Content-Type": "application/json",
       },
       next: { revalidate: 900 },
@@ -44,12 +45,7 @@ export async function GET() {
     const draft = posts.filter((p) => p.status === "DRAFT").length;
 
     // This week's posts
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - mondayOffset);
-    monday.setHours(0, 0, 0, 0);
+    const monday = getCentralWeekStart();
 
     const thisWeekPosts = posts.filter((p) => {
       if (!p.scheduledDate) return false;

@@ -8,18 +8,28 @@
   --bg-primary: #0A0A0A;
   --bg-card: #141414;
   --border-subtle: #222;
+  --text-primary: #E5E5E5;
+  --text-muted: #888888;
 }
 
 body {
-  background: var(--bg-primary);
-  color: #E5E5E5;
+  background:
+    radial-gradient(circle at top, rgba(255, 125, 69, 0.14), transparent 28%),
+    linear-gradient(180deg, #0a0a0a 0%, #090909 45%, #050505 100%);
+  color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
 }
 
 @layer components {
   .card {
-    @apply bg-[#141414] border border-[#222] rounded-xl p-5;
+    @apply rounded-[28px] border border-[#222] bg-[#141414]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)];
   }
+}
+
+::selection {
+  background: rgba(255, 125, 69, 0.28);
+  color: #ffffff;
 }
 
 /* Scrollbar styling */

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import DashboardShell from "@/components/DashboardShell";
 import SeasonTracker from "@/components/SeasonTracker";
 import OpenRouterSpend from "@/components/OpenRouterSpend";
 import ContentStatus from "@/components/ContentStatus";
@@ -10,6 +11,8 @@ import { RefreshProvider, RefreshButton } from "@/components/RefreshProvider";
 export default function Home() {
   return (
     <RefreshProvider>
+      <DashboardShell />
+      {false && (
       <main className="min-h-screen p-4 md:p-6 lg:p-8 max-w-[1440px] mx-auto">
         {/* Header */}
         <header className="mb-6">
@@ -75,6 +78,7 @@ export default function Home() {
           </p>
         </footer>
       </main>
+      )}
     </RefreshProvider>
   );
 }
