@@ -52,7 +52,6 @@ const STATIC_CRON_DEFINITIONS: StaticCronDefinition[] = [
   { id: "dahlia-weekly-check", agentId: "dahlia", name: "Weekly Content Check", expr: "0 9 * * 1" },
   { id: "dahlia-eod", agentId: "dahlia", name: "EOD Synthesis", expr: "0 21 * * 1-5" },
   { id: "dahlia-review", agentId: "dahlia", name: "Weekly Review", expr: "0 19 * * 0" },
-  { id: "repo-sync", agentId: "dahlia", name: "Repo Sync", expr: "0 5 * * *" },
   { id: "enzo-monday", agentId: "enzo", name: "Monday Check-in", expr: "0 7 * * 1" },
   { id: "enzo-thursday", agentId: "enzo", name: "Thursday Pulse", expr: "0 12 * * 4" },
   { id: "cyrus-pe-work", agentId: "cyrus-pe", name: "Work Queue Check", expr: "0 8 * * 1-5" },
