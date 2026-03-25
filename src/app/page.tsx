@@ -3,6 +3,7 @@ import OpenRouterSpend from "@/components/OpenRouterSpend";
 import ContentStatus from "@/components/ContentStatus";
 import AgentHealth from "@/components/AgentHealth";
 import BusinessMetrics from "@/components/BusinessMetrics";
+import RecentActivity from "@/components/RecentActivity";
 import { RefreshProvider, RefreshButton } from "@/components/RefreshProvider";
 
 export default function Home() {
@@ -54,6 +55,11 @@ export default function Home() {
 
         {/* Row 3: Full Width Spend */}
         <OpenRouterSpend />
+
+        {/* Row 4: Recent Activity */}
+        <div className="mt-4">
+          <RecentActivity />
+        </div>
 
         {/* Footer */}
         <footer className="mt-8 pb-4 text-center text-xs text-neutral-700">
