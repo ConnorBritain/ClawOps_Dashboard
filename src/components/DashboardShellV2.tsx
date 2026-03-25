@@ -73,8 +73,7 @@ const utilityLinks = [
 const ventureLaunchpads = [
   {
     venture: "PE" as const,
-    label: "PE",
-    note: "Letters",
+    label: "Pattern Engine",
     links: [
       { label: "Substack", href: "https://letters.patternengine.ai" },
     ],
@@ -82,7 +81,6 @@ const ventureLaunchpads = [
   {
     venture: "G2L" as const,
     label: "G2L",
-    note: "Community",
     links: [
       { label: "X", href: "https://x.com/GenAIGrowthLabs" },
       { label: "LinkedIn", href: "https://linkedin.com/company/generativegrowthlabs" },
@@ -92,7 +90,6 @@ const ventureLaunchpads = [
   {
     venture: "Personal" as const,
     label: "Personal",
-    note: "Creator",
     links: [
       { label: "X", href: "https://x.com/connorbritain" },
       { label: "LinkedIn", href: "https://linkedin.com/in/connorengland" },
@@ -104,7 +101,6 @@ const ventureLaunchpads = [
   {
     venture: "Pidgeon" as const,
     label: "Pidgeon",
-    note: "Health",
     links: [
       { label: "LinkedIn", href: "https://linkedin.com/company/pidgeonhealth" },
     ],
@@ -388,14 +384,14 @@ function growthKeyMetrics(source: GrowthSource) {
   ];
 }
 
-function growthSpotlightCopy(source: GrowthSource) {
+function growthHomeCopy(source: GrowthSource) {
   const pending = growthPendingCopy(source);
-  const totalSubscribers = sumNullablePair(source.current.freeSubscribers, source.current.paidSubscribers);
+  const hasSnapshot = hasGrowthSnapshot(source);
 
-  if (!hasGrowthSnapshot(source)) {
+  if (!hasSnapshot) {
     return {
-      label: pending.label,
-      value: source.label,
+      heading: source.label,
+      value: pending.label,
       detail: pending.detail,
       emphasis: "#FBBF24",
     };
@@ -403,44 +399,36 @@ function growthSpotlightCopy(source: GrowthSource) {
 
   if (source.source === "skool") {
     return {
-      label: source.label,
-      value: source.current.members != null ? `${formatLargeNumber(source.current.members)} members` : "Members pending",
-      detail: source.current.conversionRate != null ? `${formatRatePercent(source.current.conversionRate)} conv` : growthCollectorLabel(source),
+      heading: `${source.venture} Members`,
+      value: source.current.members != null ? formatLargeNumber(source.current.members) : "--",
+      detail: `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : "live"}`,
       emphasis: "#4ADE80",
     };
   }
 
+  const totalSubscribers = sumNullablePair(source.current.freeSubscribers, source.current.paidSubscribers);
   if (totalSubscribers != null) {
     return {
-      label: source.label,
-      value: `${formatLargeNumber(totalSubscribers)} subs`,
-      detail: source.current.paidSubscribers != null ? `${formatLargeNumber(source.current.paidSubscribers)} paid` : growthCollectorLabel(source),
+      heading: `${source.venture} Audience`,
+      value: formatLargeNumber(totalSubscribers),
+      detail: `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : "live"}`,
       emphasis: source.source === "substack" ? "#FBBF24" : "#60A5FA",
     };
   }
 
   if (source.current.followers != null) {
     return {
-      label: source.label,
-      value: `${formatLargeNumber(source.current.followers)} followers`,
-      detail: growthCollectorLabel(source),
-      emphasis: source.source === "substack" ? "#FBBF24" : "#60A5FA",
-    };
-  }
-
-  if (source.current.mrr != null) {
-    return {
-      label: source.label,
-      value: `${formatCurrency(source.current.mrr)} MRR`,
-      detail: growthCollectorLabel(source),
-      emphasis: "#4ADE80",
+      heading: `${source.venture} Followers`,
+      value: formatLargeNumber(source.current.followers),
+      detail: `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : "live"}`,
+      emphasis: "#60A5FA",
     };
   }
 
   return {
-    label: source.label,
-    value: "Snapshot live",
-    detail: growthCollectorLabel(source),
+    heading: source.label,
+    value: "Live",
+    detail: `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : "live"}`,
     emphasis: "#4ADE80",
   };
 }
@@ -692,50 +680,32 @@ function GrowthSpotlightCard({
     return <OverviewMiniCard label="Growth" value="No sources" detail="Growth registry empty" compact={compact} />;
   }
 
-  const pending = growthPendingCopy(source);
-  const spotlight = growthSpotlightCopy(source);
-  const delta = growthPrimaryDelta(source);
+  const spotlight = growthHomeCopy(source);
   const hasSnapshot = hasGrowthSnapshot(source);
-  const statusLabel = growthStatusLabel(source);
-  const badgeLabel = hasSnapshot && delta.delta7d != null ? `${formatGrowthDelta(delta.delta7d)} / 7d` : pending.label;
-  const detailLine = hasSnapshot
-    ? `${growthCollectorLabel(source)} - ${source.capturedAt ? formatTimeAgo(source.capturedAt) : statusLabel.toLowerCase()}`
-    : pending.detail;
   const Wrapper = onClick ? "button" : "div";
 
   return (
-      <Wrapper
-        {...(onClick ? { type: "button", onClick } : {})}
-        className={cx(
-          "surface-soft rounded-[18px] text-left transition-all",
-          compact ? "min-h-[80px] px-2.25 py-2" : "px-3 py-3",
-          onClick ? "w-full hover:border-white/[0.12]" : "",
-        )}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Growth</p>
-            <p className={cx("truncate font-medium text-white", compact ? "mt-1 text-[11px]" : "mt-1.5 text-sm")}>{spotlight.label}</p>
-          </div>
-        <span className={cx("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em]", growthFreshnessClasses(source.freshness))}>
+    <Wrapper
+      {...(onClick ? { type: "button", onClick } : {})}
+      className={cx(
+        "surface-soft rounded-[20px] text-left transition-all",
+        compact ? "min-h-[82px] px-2.75 py-2.25" : "px-3 py-3",
+        onClick ? "w-full hover:border-white/[0.12]" : "",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Growth</p>
+        <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.14em] text-neutral-500">
           <span className={cx("h-1.5 w-1.5 rounded-full", growthFreshnessDotClasses(source.freshness))} />
-          {statusLabel}
+          {hasSnapshot ? "Live" : "Pending"}
         </span>
       </div>
 
-      <div className="mt-1.5 flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <p className={cx("truncate font-semibold leading-[0.94]", compact ? "text-[0.98rem]" : "text-[1.1rem]")} style={{ color: spotlight.emphasis }}>
-            {spotlight.value}
-          </p>
-          <p className="mt-0.5 text-[10px] text-neutral-500">{spotlight.detail}</p>
-        </div>
-        <span className="rounded-full border border-white/[0.08] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-neutral-400">
-          {badgeLabel}
-        </span>
-      </div>
-
-      <p className="mt-1.5 text-[10px] text-neutral-500">{detailLine}</p>
+      <p className={cx("mt-1 font-medium text-white", compact ? "text-[11px]" : "text-sm")}>{spotlight.heading}</p>
+      <p className={cx("mt-1 font-semibold leading-none", compact ? "text-[1.6rem]" : "text-[1.9rem]")} style={{ color: spotlight.emphasis }}>
+        {spotlight.value}
+      </p>
+      <p className="mt-1.5 text-[10px] text-neutral-500">{spotlight.detail}</p>
     </Wrapper>
   );
 }
@@ -758,21 +728,20 @@ function VentureLaunchpadCard({
   compact?: boolean;
 }) {
   return (
-    <div className={cx("surface-soft rounded-[18px]", compact ? "px-2.25 py-2" : "px-3 py-2.5")}>
-      <div className="flex items-center justify-between gap-2">
-        <span className={`rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] ${getVentureClasses(entry.venture)}`}>
+    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-2.75 py-2.5" : "px-3.5 py-3")}>
+      <div className="flex flex-col items-center text-center">
+        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] uppercase tracking-[0.16em] ${getVentureClasses(entry.venture)}`}>
           {entry.label}
         </span>
-        <span className="text-[9px] uppercase tracking-[0.14em] text-neutral-500">{entry.note}</span>
       </div>
-      <div className="mt-1.5 flex flex-wrap gap-1">
+      <div className="mt-2 flex flex-wrap justify-center gap-1.25">
         {entry.links.map((link) => (
           <a
             key={`${entry.venture}-${link.label}`}
             href={link.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.12] hover:text-white"
+            className="inline-flex min-h-[24px] items-center justify-center rounded-full border border-white/[0.08] bg-black/65 px-2.5 py-1 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.14] hover:text-white"
           >
             {link.label}
           </a>
@@ -784,16 +753,16 @@ function VentureLaunchpadCard({
 
 function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cx("surface-soft rounded-[18px]", compact ? "px-2.25 py-2" : "px-3 py-2.5")}>
+    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-2.75 py-2.5" : "px-3.5 py-3")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Ops links</p>
-      <div className="mt-1.5 grid grid-cols-3 gap-1.25">
+      <div className="mt-2 grid grid-cols-3 gap-1.25">
         {utilityLinks.map(([label, href]) => (
           <a
             key={label}
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.12] hover:text-white"
+            className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-white/[0.08] bg-black/65 px-2 py-1 text-[9px] text-neutral-300 transition-colors hover:border-white/[0.14] hover:text-white"
           >
             <span className="h-1 w-1 rounded-full bg-[#FF7D45]" />
             <span className="truncate">{label}</span>
@@ -805,11 +774,11 @@ function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
 }
 
 function HeroSignalCard({ label, value, detail, tone, compact = false }: { label: string; value: string; detail: string; tone: string; compact?: boolean }) {
-  const longValue = value.length > 10;
+  const longValue = value.length > 8;
   return (
-    <div className={cx("surface-soft rounded-[22px]", compact ? "px-2.25 py-2" : "px-3 py-3")}>
+    <div className={cx("surface-soft rounded-[22px]", compact ? "px-2.6 py-2.25" : "px-3 py-3")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1 text-[0.9rem]" : "mt-1 text-[1.08rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1 text-[0.82rem]" : "mt-1 text-[1rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
       <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
     </div>
   );
