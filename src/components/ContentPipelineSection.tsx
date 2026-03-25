@@ -61,6 +61,10 @@ const selectClassName =
 
 const selectStyle = { colorScheme: "dark" } as const;
 
+function compactPillClass(active: boolean, activeClasses: string) {
+  return active ? activeClasses : "border-white/[0.08] bg-black/20 text-neutral-400";
+}
+
 export function ContentPipelineSection({
   loading,
   content,
@@ -112,10 +116,10 @@ export function ContentPipelineSection({
 
   if (loading) {
     return (
-      <section className="card">
+      <section className="card p-3.5 sm:p-5">
         {showHeader ? (
-          <div className="mb-4">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
+          <div className="mb-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Publishing flow</p>
             <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
           </div>
         ) : null}
@@ -129,24 +133,24 @@ export function ContentPipelineSection({
   }
 
   return (
-    <section className="card">
+    <section className="card p-3.5 sm:p-5">
       {showHeader ? (
-        <div className="mb-4">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">Publishing flow</p>
+        <div className="mb-3">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Publishing flow</p>
           <h3 className="mt-1 text-lg font-semibold text-white">Content</h3>
         </div>
       ) : null}
 
-      <div className="space-y-4">
-        <div className="surface-strong rounded-[24px] p-4">
+      <div className="space-y-3">
+        <div className="surface-strong rounded-[22px] p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Pipeline</p>
-              <p className="mt-1 text-base font-medium text-white">
-                Live publishing state across ventures and formats.
+              <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Pipeline</p>
+              <p className="mt-1 text-[15px] font-medium text-white">
+                Live publishing state.
               </p>
             </div>
-            <span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-neutral-400">
+            <span className="rounded-full border border-white/[0.08] px-2.5 py-1 text-[11px] text-neutral-400">
               {items.length} items
             </span>
           </div>
@@ -160,9 +164,7 @@ export function ContentPipelineSection({
               onClick={() => setVenture(entry)}
               className={cx(
                 "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                venture === entry
-                  ? `${getVentureClasses(entry)}`
-                  : "border-white/[0.08] bg-black/20 text-neutral-400"
+                compactPillClass(venture === entry, `${getVentureClasses(entry)}`)
               )}
             >
               {entry}
@@ -189,16 +191,16 @@ export function ContentPipelineSection({
           </label>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filteredItems.length ? (
             filteredItems.map((item) => {
               const [statusLabel, statusClasses] = statusMeta(item.status);
               return (
-                <div key={item.id} className="surface-soft rounded-[24px] p-4">
+                <div key={item.id} className="surface-soft rounded-[20px] p-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-base font-medium text-white">{item.title}</p>
+                        <p className="text-[15px] font-medium text-white">{item.title}</p>
                         <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-neutral-400">
                           {labelize(item.type)}
                         </span>
@@ -206,14 +208,14 @@ export function ContentPipelineSection({
                           {statusLabel}
                         </span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+                      <div className="mt-1.5 flex flex-wrap gap-2.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
                         {item.createdBy ? <span>{item.createdBy}</span> : null}
                         {item.platform ? <span>{platformBadge(item.platform)}</span> : null}
                         {item.week ? <span>Week {item.week}</span> : null}
                         <span>Updated {formatCentralDateTime(item.updatedAt)}</span>
                       </div>
                       {item.notes ? (
-                        <p className="mt-3 text-sm leading-relaxed text-neutral-400">{item.notes}</p>
+                        <p className="mt-2 text-[13px] leading-relaxed text-neutral-400 sm:text-sm">{item.notes}</p>
                       ) : null}
                     </div>
                     {item.driveLink ? (
@@ -232,30 +234,30 @@ export function ContentPipelineSection({
               );
             })
           ) : (
-            <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-neutral-500">
+            <div className="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-3 text-sm text-neutral-500">
               No content items for this venture and filter yet.
             </div>
           )}
         </div>
 
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Social</p>
-              <p className="mt-1 text-base font-medium text-white">Venture-specific social queue</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Social</p>
+              <p className="mt-1 text-[15px] font-medium text-white">Venture-specific social queue</p>
             </div>
             <a
               href="https://platform.postiz.com"
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-xs text-neutral-300 transition-colors hover:text-white"
+              className="rounded-full border border-white/[0.08] bg-black/20 px-3 py-1 text-[11px] text-neutral-300 transition-colors hover:text-white"
             >
               Open Postiz
             </a>
           </div>
 
           {postiz?.summary ? (
-            <div className="mb-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+            <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
               <span className="rounded-full border border-white/[0.08] px-2.5 py-1">
                 Scheduled {postiz.summary.scheduledThisWeek}
               </span>
@@ -268,7 +270,7 @@ export function ContentPipelineSection({
             </div>
           ) : null}
 
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-3 flex flex-wrap gap-2">
             {VENTURES.map((entry) => (
               <button
                 key={entry}
@@ -276,9 +278,7 @@ export function ContentPipelineSection({
                 onClick={() => setSocialVenture(entry)}
                 className={cx(
                   "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                  socialVenture === entry
-                    ? `${getVentureClasses(entry)}`
-                    : "border-white/[0.08] bg-black/20 text-neutral-400"
+                  compactPillClass(socialVenture === entry, `${getVentureClasses(entry)}`)
                 )}
               >
                 {entry}
@@ -286,7 +286,7 @@ export function ContentPipelineSection({
             ))}
           </div>
 
-          <div className="mb-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+          <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
             {Object.keys(socialPlatforms).length ? (
               Object.entries(socialPlatforms).map(([platform, count]) => (
                 <span key={platform} className="rounded-full border border-white/[0.08] px-2.5 py-1">
@@ -298,17 +298,17 @@ export function ContentPipelineSection({
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {socialPosts.length ? (
               socialPosts.map((item) => {
                 const [statusLabel, statusClasses] = statusMeta(item.status);
                 const postizPost = item.postizId ? postizById.get(item.postizId) : null;
                 return (
-                  <div key={item.id} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+                  <div key={item.id} className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-white">{item.title}</p>
-                        <div className="mt-2 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+                        <div className="mt-1.5 flex flex-wrap gap-2.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
                           <span>{platformBadge(item.platform)}</span>
                           <span>{postizPost?.scheduledDate ? formatCentralDateTime(postizPost.scheduledDate) : "Not scheduled"}</span>
                         </div>
@@ -334,18 +334,18 @@ export function ContentPipelineSection({
                 );
               })
             ) : (
-              <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3 text-sm text-neutral-500">
+              <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5 text-sm text-neutral-500">
                 No social posts for this venture yet.
               </div>
             )}
           </div>
         </div>
 
-        <div className="surface-soft rounded-[24px] p-4">
+        <div className="surface-soft rounded-[22px] p-3.5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Beacon</p>
-              <p className="mt-1 text-base font-medium text-white">Recent activity</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Beacon</p>
+              <p className="mt-1 text-[15px] font-medium text-white">Recent activity</p>
             </div>
             <label className="text-xs text-neutral-500">
               Source
@@ -364,9 +364,9 @@ export function ContentPipelineSection({
           </div>
 
           {filteredBeacon.length ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {filteredBeacon.map((activity) => (
-                <div key={activity.id} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+                <div key={activity.id} className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm leading-relaxed text-neutral-200">{activity.text}</p>

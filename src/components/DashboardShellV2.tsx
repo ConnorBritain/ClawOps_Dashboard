@@ -232,7 +232,7 @@ export default function DashboardShellV2() {
 
       <div className="hidden gap-4 lg:grid lg:grid-cols-12">
         <div className="col-span-7"><SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} /></div>
-        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
+        <div className="col-span-5"><MetricsSection loading={loading} spend={data.spend} cron={data.cron} postiz={data.postiz} work={workData} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact /></div>
         <div className="col-span-7"><AgentsSection loading={loading} snapshots={agentSnapshots} cronSource={data.cron?.source || "unknown"} /></div>
         <div className="col-span-5"><ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} /></div>
       </div>
@@ -269,7 +269,7 @@ function renderTab(tab: DashboardTab, loading: boolean, data: DashboardData, age
   if (tab === "season") return <SeasonSection loading={loading} season={data.season} seasonMatrix={data.seasonMatrix} />;
   if (tab === "agents") return <AgentsSection loading={loading} snapshots={agents} cronSource={data.cron?.source || "unknown"} />;
   if (tab === "content") return <ContentSection loading={loading} content={data.contentPipeline} beacon={data.beacon} postiz={data.postiz} showHeader={false} />;
-  return <MetricsSection loading={loading} spend={data.spend} beacon={data.beacon} cron={data.cron} postiz={data.postiz} work={work} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact={false} />;
+  return <MetricsSection loading={loading} spend={data.spend} cron={data.cron} postiz={data.postiz} work={work} content={data.contentPipeline} season={data.season} seasonMatrix={data.seasonMatrix} compact={false} />;
 }
 
 function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: WorkResponse }) {
@@ -278,45 +278,44 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
   const nextPost = data.postiz?.summary?.nextScheduled;
   const systemHealth = buildSystemHealth(data);
   return (
-    <header className="card surface-strong relative mb-5 overflow-hidden p-5">
+    <header className="card surface-strong relative mb-4 overflow-hidden p-4 lg:p-5">
       <div className="absolute right-5 top-5">
         <RefreshButton />
       </div>
 
-      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-        <div className="rounded-[22px] border border-white/10 bg-black/25 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-          <Image src="/clawops-logo.png" alt="ClawOps" width={56} height={56} className="rounded-2xl" />
+      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+        <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.24)]">
+          <Image src="/clawops-logo.png" alt="ClawOps" width={48} height={48} className="rounded-2xl" />
         </div>
-        <p className="mt-4 text-[11px] uppercase tracking-[0.32em] text-[#FFB28F]">Pattern Engine Ops</p>
-        <h1 className="mt-2 text-4xl font-semibold leading-[0.92] text-white">ClawOps Dashboard</h1>
-        <p className="mt-3 max-w-2xl text-base text-neutral-400">
-          Command brief for the fleet, shaped for a fast 6:31am phone check.
-        </p>
+        <h1 className="mt-3 text-3xl font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+        <p className="mt-2 max-w-xl text-sm text-neutral-400">Command brief for the fleet.</p>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
-        <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
-        <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
-        <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
+      <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
+        <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
+        <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
+        <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <div className="mt-2.5 grid gap-2.5 lg:grid-cols-2">
         <OverviewMiniCard
           label="Next publish"
           value={nextPost?.channel || "Nothing queued"}
           detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
+          compact
         />
         <OverviewMiniCard
           label="System health"
           value={systemHealth.label}
           detail={systemHealth.detail}
+          compact
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
         {quickLinks.map(([label, href]) => (
-          <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
+          <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-400 transition-all hover:border-white/[0.12] hover:text-white">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
             {label}
           </a>
@@ -343,46 +342,45 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
   }
 
   return (
-    <section className="space-y-4">
-      <div className="card surface-strong relative overflow-hidden p-4">
-        <div className="absolute right-4 top-4">
+      <section className="space-y-4">
+      <div className="card surface-strong relative overflow-hidden p-3.5">
+        <div className="absolute right-3.5 top-3.5">
           <RefreshButton compact />
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="rounded-[20px] border border-white/10 bg-black/25 p-2.5 shadow-[0_14px_30px_rgba(0,0,0,0.26)]">
-            <Image src="/clawops-logo.png" alt="ClawOps" width={40} height={40} className="rounded-xl" />
+          <div className="rounded-[18px] border border-white/10 bg-black/25 p-2 shadow-[0_12px_26px_rgba(0,0,0,0.24)]">
+            <Image src="/clawops-logo.png" alt="ClawOps" width={34} height={34} className="rounded-xl" />
           </div>
-          <p className="mt-4 text-[11px] uppercase tracking-[0.32em] text-[#FFB28F]">Pattern Engine Ops</p>
-          <h1 className="mt-2 text-[2.15rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
-          <p className="mt-3 max-w-[19rem] text-sm leading-relaxed text-neutral-400">
-            Command brief for the fleet, shaped for a fast 6:31am phone check.
-          </p>
+          <h1 className="mt-3 text-[1.9rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
+          <p className="mt-2 max-w-[15rem] text-[13px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
-          <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
-          <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
-          <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
+        <div className="mt-3.5 grid grid-cols-2 gap-2.5">
+          <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
+          <HeroSignalCard label="Open work" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
+          <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
+          <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
         </div>
 
-        <div className="mt-3 grid gap-3">
+        <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
           <OverviewMiniCard
             label="Next publish"
             value={nextPost?.channel || "Nothing queued"}
             detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
+            compact
           />
           <OverviewMiniCard
             label="System health"
             value={systemHealth.label}
             detail={systemHealth.detail}
+            compact
           />
         </div>
 
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
+        <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
           {quickLinks.map(([label, href]) => (
-            <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/20 px-3 py-1.5 text-[11px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
+            <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-black/20 px-2.5 py-1 text-[10px] text-neutral-300 transition-all hover:border-white/[0.12] hover:text-white">
               <span className="h-1.5 w-1.5 rounded-full bg-[#FF7D45]" />
               {label}
             </a>
@@ -393,28 +391,29 @@ function MobileOverviewSection({ loading, data, work }: { loading: boolean; data
   );
 }
 
-function OverviewMiniCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+function OverviewMiniCard({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
   return (
-    <div className="surface-soft rounded-[20px] px-3 py-3">
+    <div className={cx("surface-soft rounded-[20px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className="mt-2 text-sm font-medium text-white">{value}</p>
-      <p className="mt-1 text-xs leading-relaxed text-neutral-500">{detail}</p>
+      <p className={cx("font-medium text-white", compact ? "mt-1.5 text-[13px]" : "mt-2 text-sm")}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1 text-[11px]" : "mt-1 text-xs")}>{detail}</p>
     </div>
   );
 }
 
-function HeroSignalCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }) {
+function HeroSignalCard({ label, value, detail, tone, compact = false }: { label: string; value: string; detail: string; tone: string; compact?: boolean }) {
+  const longValue = value.length > 10;
   return (
-    <div className="surface-soft rounded-[22px] px-3 py-3">
+    <div className={cx("surface-soft rounded-[22px]", compact ? "px-3 py-2.5" : "px-3 py-3")}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className="mt-3 text-[1.95rem] font-semibold leading-[0.92]" style={{ color: tone }}>{value}</p>
-      <p className="mt-2 text-xs leading-relaxed text-neutral-500">{detail}</p>
+      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-2 text-[1.05rem]" : "mt-2 text-[1.45rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-1.5 text-[11px]" : "mt-2 text-xs")}>{detail}</p>
     </div>
   );
 }
 
 function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
-  return <div className="mb-4 px-1"><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[2rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
+  return <div className="mb-3 px-1"><p className="text-[10px] uppercase tracking-[0.24em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[1.75rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
 }
 
 function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChange: (tab: DashboardTab) => void }) {
@@ -433,7 +432,7 @@ function MobileTabBar({ activeTab, onChange }: { activeTab: DashboardTab; onChan
 }
 
 function SectionCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
-  return <section className="card p-4 sm:p-5"><div className="mb-4"><p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">{subtitle}</p><h3 className="mt-1 text-lg font-semibold text-white">{title}</h3></div>{children}</section>;
+  return <section className="card p-3.5 sm:p-5"><div className="mb-3"><p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">{subtitle}</p><h3 className="mt-1 text-lg font-semibold text-white">{title}</h3></div>{children}</section>;
 }
 
 const MATRIX_VENTURES: SeasonMatrixSlot["venture"][] = ["PE", "G2L", "Pidgeon", "Personal"];
@@ -517,31 +516,31 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
 
   return (
     <SectionCard title="Season" subtitle={preLaunch ? "Pre-launch countdown" : "Fiscal rhythm"}>
-      <div className="surface-strong rounded-[26px] p-4 sm:p-5">
+      <div className="surface-strong rounded-[24px] p-3.5 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xl">
             <p className="text-sm font-medium text-[#FFB28F]">Season {preLaunch ? "1: Signal" : `${season.season.number}: ${season.season.name}`}</p>
-            <h4 className="mt-1 text-[2rem] font-semibold leading-[0.96] text-white sm:text-[2.35rem]">
+            <h4 className="mt-1 text-[1.7rem] font-semibold leading-[0.96] text-white sm:text-[2.2rem]">
               {preLaunch ? "Launch sequence running" : `Week ${season.weekInSeason} of 13`}
             </h4>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+            <p className="mt-2 text-[13px] leading-relaxed text-neutral-400 sm:text-sm">
               {preLaunch ? "The fiscal year anchor begins on April 1, 2026. Until then the dashboard stays in countdown mode." : season.season.theme}
             </p>
-            <p className="mt-3 text-sm text-neutral-500">Pattern machines are here. Wisdom is optional.</p>
+            <p className="mt-2.5 text-[13px] text-neutral-500 sm:text-sm">Pattern machines are here. Wisdom is optional.</p>
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-black/25 px-4 py-3 text-center sm:min-w-[134px] sm:px-5 sm:py-4">
-            <p className="text-5xl font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-7xl">{season.daysUntilNextSeason}</p>
+          <div className="rounded-[22px] border border-white/10 bg-black/25 px-4 py-2.5 text-center sm:min-w-[122px] sm:px-5 sm:py-4">
+            <p className="text-[3.2rem] font-semibold tracking-[-0.04em] text-[#FF7D45] sm:text-6xl">{season.daysUntilNextSeason}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-neutral-500">{preLaunch ? "days" : "to next"}</p>
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
           <HighlightCard label="Pattern card" title={season.pattern.name} copy={season.pattern.description} tone={season.season.color} />
           {season.challenge ? <HighlightCard label={preLaunch ? "First challenge lab" : `Challenge #${season.challengeNumber}`} title={season.challenge.name} copy={season.challenge.humanQuestion} tone="#DC97FF" /> : null}
         </div>
       </div>
 
-      <div className="mt-4 space-y-4 border-t border-white/[0.05] pt-4">
+      <div className="mt-3.5 space-y-3 border-t border-white/[0.05] pt-3.5">
         <div className="flex flex-wrap gap-2">
           {SEASONS.map((entry) => (
             <button
@@ -564,9 +563,9 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
-          <OverviewMiniCard label="Planned slots" value={String(seasonSlots.length || 0)} detail={`Season ${selectedSeason} blueprint`} />
-          <OverviewMiniCard label="In motion" value={String(startedCount)} detail={`${filledWeeks} week${filledWeeks === 1 ? "" : "s"} touched`} />
-          <OverviewMiniCard label="Published" value={String(publishedCount)} detail="Green cells complete" />
+          <OverviewMiniCard label="Planned slots" value={String(seasonSlots.length || 0)} detail={`Season ${selectedSeason} blueprint`} compact />
+          <OverviewMiniCard label="In motion" value={String(startedCount)} detail={`${filledWeeks} week${filledWeeks === 1 ? "" : "s"} touched`} compact />
+          <OverviewMiniCard label="Published" value={String(publishedCount)} detail="Green cells complete" compact />
         </div>
 
         <div className="overflow-x-auto pb-1">
@@ -577,20 +576,20 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                 type="button"
                 onClick={() => setSelectedWeek(weekCard.week)}
                 className={cx(
-                  "surface-soft w-[108px] rounded-[20px] px-3 py-3 text-left transition-colors",
+                  "surface-soft w-[96px] rounded-[18px] px-2.5 py-2.5 text-left transition-colors",
                   activeWeek === weekCard.week && "border-[#FF7D45]/16 bg-[#FF7D45]/[0.05]"
                 )}
               >
                 <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">W{weekCard.week}</p>
-                <p className="mt-2 text-sm font-medium text-white">{weekCard.title}</p>
+                <p className="mt-1.5 text-sm font-medium text-white">{weekCard.title}</p>
                 <p className="mt-1 text-[11px] text-neutral-500">{weekCard.summary}</p>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Week {activeWeek}</p>
               <p className="mt-1 text-lg font-semibold text-white">{weekSummaryLabel(selectedSeason, activeWeek)}</p>
@@ -601,18 +600,18 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
           </div>
 
           {weekSlots.length ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2.5 md:grid-cols-2">
               {MATRIX_VENTURES.map((venture) => {
                 const ventureSlots = weekSlots.filter((slot) => slot.venture === venture);
                 if (!ventureSlots.length) return null;
 
                 return (
-                  <div key={venture} className="rounded-[20px] border border-white/[0.06] bg-black/20 p-3">
-                    <div className="mb-3 flex items-center justify-between">
+                  <div key={venture} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+                    <div className="mb-2.5 flex items-center justify-between">
                       <p className="text-sm font-medium text-white">{venture}</p>
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] ${getVentureClasses(venture)}`}>{venture}</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {ventureSlots.map((slot) => {
                         const status = matrixStatusMeta(slot.status);
                         const href = slot.canonicalUrl || slot.driveLink;
@@ -623,7 +622,7 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                             target={href ? "_blank" : undefined}
                             rel={href ? "noreferrer" : undefined}
                             className={cx(
-                              "block rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-3 transition-colors",
+                              "block rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors",
                               href && "hover:border-white/[0.12] hover:bg-white/[0.03]"
                             )}
                           >
@@ -638,8 +637,8 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
                                     </span>
                                   ) : null}
                                 </div>
-                                <p className="mt-2 text-sm leading-relaxed text-neutral-300">{slot.title || slot.plannedTitle || "Planned slot"}</p>
-                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+                                <p className="mt-1.5 text-sm leading-relaxed text-neutral-300">{slot.title || slot.plannedTitle || "Planned slot"}</p>
+                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
                                   <span className={`rounded-full border px-2 py-0.5 ${status.classes}`}>{status.label}</span>
                                   {slot.ownerAgent ? <span>{slot.ownerAgent}</span> : null}
                                   {slot.platforms.length ? <span>{slot.platforms.join(", ")}</span> : null}
@@ -666,7 +665,7 @@ function SeasonSection({ loading, season, seasonMatrix }: { loading: boolean; se
 }
 
 function HighlightCard({ label, title, copy, tone }: { label: string; title: string; copy: string; tone: string }) {
-  return <div className="surface-soft rounded-[22px] p-4"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: tone }} /><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p></div><p className="mt-3 text-base font-medium text-white">{title}</p><p className="mt-2 text-sm leading-relaxed text-neutral-400">{copy}</p></div>;
+  return <div className="surface-soft rounded-[20px] p-3.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: tone }} /><p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p></div><p className="mt-2 text-[15px] font-medium text-white">{title}</p><p className="mt-1.5 text-[13px] leading-relaxed text-neutral-400 sm:text-sm">{copy}</p></div>;
 }
 
 function AgentsSection({ loading, snapshots, cronSource }: { loading: boolean; snapshots: AgentSnapshot[]; cronSource: string }) {
@@ -714,7 +713,7 @@ function AgentsSection({ loading, snapshots, cronSource }: { loading: boolean; s
 }
 
 function MetricBox({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-2.5 sm:p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</p><p className="mt-1 text-sm font-medium text-white">{value}</p></div>;
+  return <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5"><p className="text-[10px] uppercase tracking-[0.14em] text-neutral-500">{label}</p><p className="mt-1 text-sm font-medium text-white">{value}</p></div>;
 }
 
 function ContentSection({
@@ -744,7 +743,6 @@ function ContentSection({
 function MetricsSection({
   loading,
   spend,
-  beacon,
   cron,
   postiz,
   work,
@@ -754,7 +752,6 @@ function MetricsSection({
 }: {
   loading: boolean;
   spend: SpendResponse | null;
-  beacon: BeaconResponse | null;
   cron: CronResponse | null;
   postiz: PostizResponse | null;
   work: WorkResponse;
@@ -785,56 +782,55 @@ function MetricsSection({
     return { venture, total: slots.length, started };
   }).filter((entry) => entry.total > 0);
 
-  const beaconPerItem = touchedThisWeek.length ? Math.round((beacon?.thisWeekThoughts || 0) / touchedThisWeek.length) : null;
   const overdueCrons = (cron?.jobs || []).filter((job) => job.nextRunAt && new Date(job.nextRunAt).getTime() < Date.now() - 900000).length;
   const oldestItem = [...work.items].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())[0];
   const highPriority = work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length;
 
   return (
     <SectionCard title="Metrics" subtitle="Business pulse">
-      <div className="space-y-4">
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="space-y-3">
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Spend pace</p>
               <p className="mt-1 text-base font-medium text-white">Burn rate and projection</p>
             </div>
-            <p className="text-sm text-neutral-500">{spendTrend.length ? `${spendTrend.length} day trend` : "Trend unavailable"}</p>
+            <p className="text-xs text-neutral-500">{spendTrend.length ? `${spendTrend.length} day trend` : "Trend unavailable"}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <MetricBox label="This week" value={spend ? formatCurrency(spend.totals.weekly) : "--"} />
             <MetricBox label="Projected" value={projectedWeeklySpend ? formatCurrency(projectedWeeklySpend) : "--"} />
             <MetricBox label="Avg / day" value={spend ? formatCurrency(spend.totals.weekly / Math.max(1, weekProgress * 7)) : "--"} />
           </div>
-          <div className="mt-4">
+          <div className="mt-3">
             <Sparkline values={spendTrend.map((entry) => entry.total)} />
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] uppercase tracking-[0.14em] text-neutral-500">
             {topSpenders.length ? topSpenders.map((agent) => (
-              <span key={agent.id} className="rounded-full border border-white/[0.08] px-2.5 py-1">
+              <span key={agent.id} className="rounded-full border border-white/[0.08] px-2 py-0.5">
                 {agent.name} {formatCurrency(agent.weekly)}
               </span>
             )) : <span>No spend data by agent</span>}
           </div>
         </div>
 
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Production pace</p>
               <p className="mt-1 text-base font-medium text-white">Output, runway, and shipping velocity</p>
             </div>
-            <p className="text-sm text-neutral-500">{touchedThisWeek.length} item{touchedThisWeek.length === 1 ? "" : "s"} moved this week</p>
+            <p className="text-xs text-neutral-500">{touchedThisWeek.length} item{touchedThisWeek.length === 1 ? "" : "s"} moved this week</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <MetricBox label="Drafted" value={String(touchedByStatus.drafted || 0)} />
             <MetricBox label="Review" value={String(touchedByStatus.review || 0)} />
             <MetricBox label="Scheduled" value={String(postiz?.summary?.scheduledThisWeek || 0)} />
             <MetricBox label="Published" value={String(postiz?.summary?.publishedThisWeek || 0)} />
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 space-y-1.5">
             {ventureCoverage.length ? ventureCoverage.map((entry) => (
-              <div key={entry.venture} className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+              <div key={entry.venture} className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
                 <div className="mb-2 flex items-center justify-between gap-3 text-xs">
                   <span className={`rounded-full border px-2 py-0.5 uppercase tracking-[0.14em] ${getVentureClasses(entry.venture)}`}>{entry.venture}</span>
                   <span className="text-neutral-500">{entry.started}/{entry.total} started</span>
@@ -847,54 +843,31 @@ function MetricsSection({
           </div>
         </div>
 
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Cognition vs output</p>
-              <p className="mt-1 text-base font-medium text-white">Beacon pace relative to shipping</p>
-            </div>
-            <p className="text-sm text-neutral-500">{beacon?.thisWeekThoughts || 0} thoughts this week</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <MetricBox label="Beacon" value={String(beacon?.thisWeekThoughts || 0)} />
-            <MetricBox label="Items moved" value={String(touchedThisWeek.length)} />
-            <MetricBox label="Thoughts / item" value={beaconPerItem != null ? String(beaconPerItem) : "--"} />
-          </div>
-          <div className="mt-4 rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Read</p>
-            <p className="mt-1 text-sm font-medium text-white">
-              {touchedThisWeek.length
-                ? `${beaconPerItem} Beacon thought${beaconPerItem === 1 ? "" : "s"} per item moved this week.`
-                : "Beacon is active, but nothing has moved through the pipeline yet this week."}
-            </p>
-          </div>
-        </div>
-
-        <div className="surface-soft rounded-[24px] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="surface-soft rounded-[22px] p-3.5">
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Operational health</p>
               <p className="mt-1 text-base font-medium text-white">Risk, queue age, and cron reliability</p>
             </div>
-            <p className="text-sm text-neutral-500">{work.total} open item{work.total === 1 ? "" : "s"}</p>
+            <p className="text-xs text-neutral-500">{work.total} open item{work.total === 1 ? "" : "s"}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <MetricBox label="Cron errors" value={String(cron?.summary.errors || 0)} />
             <MetricBox label="Overdue crons" value={String(overdueCrons)} />
             <MetricBox label="High priority" value={String(highPriority)} />
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
               <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Oldest open item</p>
               <p className="mt-1 text-sm font-medium text-white">{oldestItem?.title || "No active work"}</p>
-              <p className="mt-2 text-xs text-neutral-500">{oldestItem ? `Age ${formatAge(oldestItem.createdAt)}` : "Queue is clear"}</p>
+              <p className="mt-1.5 text-xs text-neutral-500">{oldestItem ? `Age ${formatAge(oldestItem.createdAt)}` : "Queue is clear"}</p>
             </div>
-            <div className="rounded-[18px] border border-white/[0.06] bg-black/20 p-3">
+            <div className="rounded-[16px] border border-white/[0.06] bg-black/20 p-2.5">
               <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Next publish</p>
               <p className="mt-1 text-sm font-medium text-white">
                 {postiz?.summary?.nextScheduled ? `${postiz.summary.nextScheduled.channel}` : "Nothing queued"}
               </p>
-              <p className="mt-2 text-xs text-neutral-500">
+              <p className="mt-1.5 text-xs text-neutral-500">
                 {postiz?.summary?.nextScheduled?.scheduledDate
                   ? formatCentralDateTime(postiz.summary.nextScheduled.scheduledDate)
                   : "Publishing runway is empty"}
