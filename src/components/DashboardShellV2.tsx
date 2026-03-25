@@ -433,6 +433,13 @@ function growthHomeCopy(source: GrowthSource) {
   };
 }
 
+function formatHomeCronName(name: string | null | undefined, compact = false) {
+  if (!name) return "No schedule";
+  const shortened = name.replace(/^(Dahlia|Enzo|Cyrus|Echo|Atlas|Haven)\s+/i, "");
+  if (!compact || shortened.length <= 20) return shortened;
+  return shortened.replace(/\s+/, "\n");
+}
+
 export default function DashboardShellV2() {
   const { refreshKey } = useRefresh();
   const router = useRouter();
@@ -552,37 +559,36 @@ function DesktopOverviewHeader({ data, work }: { data: DashboardData; work: Work
   const nextPost = data.postiz?.summary?.nextScheduled;
   const growthSource = preferredGrowthSource(data.growth);
   return (
-    <header className="card surface-strong relative mb-4 overflow-hidden p-3.5 lg:p-4.5">
+    <header className="card surface-strong relative mb-4 overflow-hidden p-5 lg:p-6">
       <div className="absolute right-5 top-5">
         <RefreshButton />
       </div>
 
-      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-        <div className="rounded-[18px] border border-white/10 bg-black/25 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.24)]">
-          <Image src="/clawops-logo.png" alt="ClawOps" width={42} height={42} className="rounded-2xl" />
+      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+        <div className="rounded-[22px] border border-white/10 bg-black/25 p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.24)]">
+          <Image src="/clawops-logo.png" alt="ClawOps" width={54} height={54} className="rounded-2xl" />
         </div>
-        <h1 className="mt-2.5 text-[2.35rem] font-semibold leading-[0.94] text-white">ClawOps Dashboard</h1>
-        <p className="mt-1.5 max-w-xl text-[13px] text-neutral-400">Command brief for the fleet.</p>
+        <h1 className="mt-3 text-[2.9rem] font-semibold leading-[0.95] text-white">ClawOps Dashboard</h1>
+        <p className="mt-2 max-w-xl text-sm text-neutral-400">Command brief for the fleet.</p>
       </div>
 
-      <div className="mt-4.5 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
-        <HeroSignalCard label="Open tasks" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
-        <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
-        <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
+      <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" />
+        <HeroSignalCard label="Open tasks" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" />
+        <HeroSignalCard label="Next cron" value={formatHomeCronName(nextCron?.name)} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" />
+        <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+      <div className="mt-3 grid gap-2.5 lg:grid-cols-2">
         <OverviewMiniCard
           label="Next publish"
           value={nextPost?.channel || "Nothing queued"}
           detail={nextPost?.scheduledDate ? formatCentralDateTime(nextPost.scheduledDate) : "Postiz queue is quiet"}
-          compact
         />
-        <GrowthSpotlightCard source={growthSource} compact />
+        <GrowthSpotlightCard source={growthSource} />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      <div className="mt-3 grid gap-2.5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <VentureLaunchpadGrid />
         <UtilityLinksGrid />
       </div>
@@ -618,7 +624,7 @@ function MobileOverviewSection({
 
   return (
     <section className="space-y-3">
-      <div className="card surface-strong relative overflow-hidden p-2.25">
+      <div className="card surface-strong relative overflow-hidden p-2.75">
         <div className="absolute right-3.5 top-3.5">
           <RefreshButton compact />
         </div>
@@ -631,14 +637,14 @@ function MobileOverviewSection({
           <p className="mt-0.75 max-w-[11rem] text-[10px] leading-relaxed text-neutral-400">Command brief for the fleet.</p>
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-1.25">
+        <div className="mt-2.25 grid grid-cols-2 gap-1.5">
           <HeroSignalCard label="Weekly spend" value={data.spend ? formatCurrency(data.spend.totals.weekly) : "--"} detail={data.spend ? `${formatCurrency(data.spend.totals.daily)} today` : "Spend unavailable"} tone="#FF7D45" compact />
           <HeroSignalCard label="Open tasks" value={String(work.total)} detail={`${work.items.filter((item) => ["high", "urgent"].includes(item.priority)).length} high-priority`} tone="#DC97FF" compact />
-          <HeroSignalCard label="Next cron" value={nextCron ? nextCron.name : "No schedule"} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
+          <HeroSignalCard label="Next cron" value={formatHomeCronName(nextCron?.name, true)} detail={nextCron?.nextRunAt ? formatTimeUntil(nextCron.nextRunAt) : "No upcoming run"} tone="#60A5FA" compact />
           <HeroSignalCard label="Attention" value={attention.label} detail={attention.detail} tone={attention.tone} compact />
         </div>
 
-        <div className="mt-1.25 grid grid-cols-2 gap-1.25">
+        <div className="mt-1.5 grid gap-1.5">
           <OverviewMiniCard
             label="Next publish"
             value={nextPost?.channel || "Nothing queued"}
@@ -648,7 +654,7 @@ function MobileOverviewSection({
           <GrowthSpotlightCard source={growthSource} compact onClick={onOpenMetrics} />
         </div>
 
-        <div className="mt-1.25 grid gap-1.25">
+        <div className="mt-1.5 grid gap-1.5">
           <VentureLaunchpadGrid compact />
           <UtilityLinksGrid compact />
         </div>
@@ -659,9 +665,9 @@ function MobileOverviewSection({
 
 function OverviewMiniCard({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
   return (
-    <div className={cx("surface-soft rounded-[20px]", compact ? "px-2.5 py-2" : "px-3 py-3")}>
+    <div className={cx("surface-soft rounded-[20px]", compact ? "min-h-[94px] px-2.75 py-2.5" : "min-h-[104px] px-3.5 py-3.5")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-medium text-white", compact ? "mt-1 text-[11px]" : "mt-2 text-sm")}>{value}</p>
+      <p className={cx("font-medium leading-tight text-white", compact ? "mt-1.5 text-[12px]" : "mt-2 text-sm")}>{value}</p>
       <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-1 text-xs")}>{detail}</p>
     </div>
   );
@@ -689,7 +695,7 @@ function GrowthSpotlightCard({
       {...(onClick ? { type: "button", onClick } : {})}
       className={cx(
         "surface-soft rounded-[20px] text-left transition-all",
-        compact ? "min-h-[82px] px-2.75 py-2.25" : "px-3 py-3",
+        compact ? "min-h-[94px] px-2.75 py-2.5" : "min-h-[104px] px-3.5 py-3.5",
         onClick ? "w-full hover:border-white/[0.12]" : "",
       )}
     >
@@ -712,7 +718,7 @@ function GrowthSpotlightCard({
 
 function VentureLaunchpadGrid({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cx("grid gap-1.25", compact ? "grid-cols-2" : "grid-cols-2")}>
+    <div className={cx("grid gap-1.5", compact ? "grid-cols-1" : "grid-cols-2")}>
       {ventureLaunchpads.map((entry) => (
         <VentureLaunchpadCard key={entry.venture} entry={entry} compact={compact} />
       ))}
@@ -728,7 +734,7 @@ function VentureLaunchpadCard({
   compact?: boolean;
 }) {
   return (
-    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-2.75 py-2.5" : "px-3.5 py-3")}>
+    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-3 py-3" : "px-3.5 py-3.25")}>
       <div className="flex flex-col items-center text-center">
         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] uppercase tracking-[0.16em] ${getVentureClasses(entry.venture)}`}>
           {entry.label}
@@ -753,7 +759,7 @@ function VentureLaunchpadCard({
 
 function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-2.75 py-2.5" : "px-3.5 py-3")}>
+    <div className={cx("rounded-[20px] border border-white/[0.06] bg-[#090909]/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]", compact ? "px-3 py-3" : "px-3.5 py-3.25")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Ops links</p>
       <div className="mt-2 grid grid-cols-3 gap-1.25">
         {utilityLinks.map(([label, href]) => (
@@ -776,9 +782,9 @@ function UtilityLinksGrid({ compact = false }: { compact?: boolean }) {
 function HeroSignalCard({ label, value, detail, tone, compact = false }: { label: string; value: string; detail: string; tone: string; compact?: boolean }) {
   const longValue = value.length > 8;
   return (
-    <div className={cx("surface-soft rounded-[22px]", compact ? "px-2.6 py-2.25" : "px-3 py-3")}>
+    <div className={cx("surface-soft rounded-[22px]", compact ? "min-h-[108px] px-2.8 py-2.75" : "min-h-[120px] px-3.5 py-3.5")}>
       <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</p>
-      <p className={cx("font-semibold leading-[0.92]", compact ? (longValue ? "mt-1 text-[0.82rem]" : "mt-1 text-[1rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
+      <p className={cx("font-semibold leading-[0.96] break-words whitespace-pre-line", compact ? (longValue ? "mt-1.5 text-[0.9rem]" : "mt-1.5 text-[1.02rem]") : "mt-3 text-[1.95rem]")} style={{ color: tone }}>{value}</p>
       <p className={cx("leading-relaxed text-neutral-500", compact ? "mt-0.5 text-[10px]" : "mt-2 text-xs")}>{detail}</p>
     </div>
   );
