@@ -413,10 +413,6 @@ function HeroSignalCard({ label, value, detail, tone }: { label: string; value: 
   );
 }
 
-function HeaderMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return <div className="surface-soft rounded-[22px] px-3 py-3"><p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</p><p className="mt-2 text-xl font-semibold leading-none" style={{ color: tone }}>{value}</p></div>;
-}
-
 function TabHeading({ activeTab }: { activeTab: DashboardTab }) {
   return <div className="mb-4 px-1"><p className="text-[11px] uppercase tracking-[0.26em] text-neutral-500">{tabMeta[activeTab].eyebrow}</p><h2 className="mt-1 text-[2rem] font-semibold leading-none text-white">{tabMeta[activeTab].label}</h2></div>;
 }
