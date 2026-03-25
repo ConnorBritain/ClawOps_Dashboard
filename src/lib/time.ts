@@ -191,3 +191,28 @@ export function formatTimeUntil(value: string | null) {
   const days = Math.floor(hours / 24);
   return `in ${days}d`;
 }
+
+export function formatAge(value: string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  const diff = Date.now() - new Date(value).getTime();
+  const hours = Math.max(0, Math.floor(diff / 3600000));
+
+  if (hours < 1) {
+    return "<1h";
+  }
+
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `${days}d`;
+  }
+
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w`;
+}

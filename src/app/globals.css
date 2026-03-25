@@ -5,6 +5,13 @@
 :root {
   --pe-orange: #FF7D45;
   --g2l-violet: #DC97FF;
+  --pidgeon-blue: #60A5FA;
+  --graphite-900: #0b0b0b;
+  --graphite-850: #111111;
+  --graphite-800: #151515;
+  --graphite-760: #1c1a19;
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --line-warm: rgba(255, 125, 69, 0.14);
   --bg-primary: #0A0A0A;
   --bg-card: #141414;
   --border-subtle: #222;
@@ -14,8 +21,9 @@
 
 body {
   background:
-    radial-gradient(circle at top, rgba(255, 125, 69, 0.14), transparent 28%),
-    linear-gradient(180deg, #0a0a0a 0%, #090909 45%, #050505 100%);
+    radial-gradient(circle at top left, rgba(255, 125, 69, 0.14), transparent 22%),
+    radial-gradient(circle at 80% 0%, rgba(220, 151, 255, 0.08), transparent 18%),
+    linear-gradient(180deg, #0b0b0b 0%, #090909 38%, #050505 100%);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
@@ -23,7 +31,30 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-[28px] border border-[#222] bg-[#141414]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)];
+    @apply rounded-[28px] border p-5;
+    border-color: var(--line-soft);
+    background:
+      linear-gradient(180deg, rgba(24, 24, 24, 0.94), rgba(14, 14, 14, 0.9)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 24px 80px rgba(0, 0, 0, 0.28);
+  }
+
+  .surface-soft {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
+    border: 1px solid var(--line-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .surface-strong {
+    background:
+      radial-gradient(circle at top left, rgba(255, 125, 69, 0.08), transparent 40%),
+      linear-gradient(180deg, rgba(26, 24, 22, 0.96), rgba(16, 16, 16, 0.94));
+    border: 1px solid rgba(255, 125, 69, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 20px 60px rgba(0, 0, 0, 0.22);
   }
 }
 
@@ -58,4 +89,13 @@ body {
 
 .pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes tab-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-fade {
+  animation: tab-fade 160ms ease-out;
 }

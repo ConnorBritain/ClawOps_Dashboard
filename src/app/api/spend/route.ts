@@ -65,8 +65,8 @@ export async function GET() {
         : 0;
 
       let status: "ok" | "warning" | "critical" = "ok";
-      if (usagePercent > 80) status = "critical";
-      else if (usagePercent > 50) status = "warning";
+      if (usagePercent >= 90) status = "critical";
+      else if (usagePercent >= 80) status = "warning";
 
       return {
         id: agent.id,

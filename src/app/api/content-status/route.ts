@@ -1,117 +1,208 @@
 import { NextResponse } from "next/server";
-import { getCentralWeekStart } from "@/lib/time";
+import { getSeasonState } from "@/lib/seasons";
 
-export const revalidate = 300; // 5 min
+export const revalidate = 300;
 
 const SUPABASE_URL = process.env.BEACON_SUPABASE_URL;
 const SUPABASE_KEY = process.env.BEACON_SUPABASE_SERVICE_ROLE_KEY;
 
-interface ContentItem {
+type ContentType = "pattern-card" | "currents" | "challenge-lab" | "build-note";
+type ContentStatus = "not-started" | "drafted" | "reviewed" | "published";
+
+interface ContentDefinition {
+  type: ContentType;
   label: string;
-  type: "pattern-card" | "currents" | "challenge-lab" | "build-note";
-  status: "not-started" | "drafted" | "reviewed" | "published";
-  source: string;
-  lastUpdate: string | null;
+  cadence: string;
+  venture: string;
+  summary: {
+    preLaunch: string;
+    live: string;
+  };
+  keywords: string[];
+}
+
+interface WorkQueueItem {
+  id: string;
+  title: string;
+  assigned_to: string | null;
+  status: string;
+  venture: string;
+  updated_at: string;
+  description: string | null;
+}
+
+const CONTENT_DEFINITIONS: ContentDefinition[] = [
+  {
+    type: "pattern-card",
+    label: "Pattern Card",
+    cadence: "Weekly",
+    venture: "PE",
+    summary: {
+      preLaunch: "Season 1 prep for the first Pattern Card.",
+      live: "Weekly Pattern Engine pattern drop.",
+    },
+    keywords: ["pattern card", "pattern note", "weekly essay", "signal card"],
+  },
+  {
+    type: "currents",
+    label: "Currents Newsletter",
+    cadence: "Weekly Tue",
+    venture: "G2L",
+    summary: {
+      preLaunch: "Newsletter runway and April 1 launch prep.",
+      live: "Weekly Tuesday Currents send.",
+    },
+    keywords: ["currents", "newsletter", "beehiiv"],
+  },
+  {
+    type: "challenge-lab",
+    label: "Challenge Lab",
+    cadence: "Biweekly",
+    venture: "G2L",
+    summary: {
+      preLaunch: "Challenge Lab prep and launch sequencing.",
+      live: "Biweekly Challenge Lab release.",
+    },
+    keywords: ["challenge lab", "challenge", "skool"],
+  },
+  {
+    type: "build-note",
+    label: "Social Posts",
+    cadence: "Always on",
+    venture: "Shared",
+    summary: {
+      preLaunch: "Launch-week social and teaser queue.",
+      live: "Social distribution and post queue.",
+    },
+    keywords: ["social", "post", "linkedin", "thread", "tweet", "x post"],
+  },
+];
+
+function mapWorkStatus(status: string): ContentStatus {
+  switch (status) {
+    case "done":
+      return "published";
+    case "review":
+      return "reviewed";
+    case "in_progress":
+    case "confirmed":
+    case "queued":
+      return "drafted";
+    default:
+      return "not-started";
+  }
+}
+
+function getHighestStatus(items: WorkQueueItem[]) {
+  const weights: Record<ContentStatus, number> = {
+    "not-started": 0,
+    drafted: 1,
+    reviewed: 2,
+    published: 3,
+  };
+
+  return items.reduce<ContentStatus>((current, item) => {
+    const next = mapWorkStatus(item.status);
+    return weights[next] > weights[current] ? next : current;
+  }, "not-started");
+}
+
+function matchesKeywords(item: WorkQueueItem, keywords: string[]) {
+  const haystack = `${item.title} ${item.description || ""}`.toLowerCase();
+  return keywords.some((keyword) => haystack.includes(keyword));
 }
 
 export async function GET() {
-  // Search Beacon for content signals this week
-  const contentItems: ContentItem[] = [];
+  const season = getSeasonState();
+  const isPreLaunch = season.weekInSeason === 0;
 
-  try {
-    if (SUPABASE_URL && SUPABASE_KEY) {
-      // Get this week's Monday
-      const monday = getCentralWeekStart();
-
-      // Search for content-related thoughts
-      const url = new URL(`${SUPABASE_URL}/rest/v1/thoughts`);
-      url.searchParams.set("select", "id,raw_text,source,created_at,thought_type");
-      url.searchParams.set("created_at", `gte.${monday.toISOString()}`);
-      url.searchParams.set("order", "created_at.desc");
-      url.searchParams.set("limit", "50");
-
-      const res = await fetch(url.toString(), {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        next: { revalidate: 300 },
-      });
-
-      if (res.ok) {
-        const thoughts = await res.json();
-
-        // Scan for content signals
-        const contentKeywords = {
-          "pattern-card": ["pattern card", "pattern note", "weekly essay"],
-          currents: ["currents", "newsletter", "beehiiv"],
-          "challenge-lab": ["challenge lab", "challenge post", "skool post"],
-          "build-note": ["build note", "build log"],
-        };
-
-        for (const [type, keywords] of Object.entries(contentKeywords)) {
-          const matching = thoughts.filter((t: Record<string, string>) =>
-            keywords.some((k) => t.raw_text?.toLowerCase().includes(k))
-          );
-
-          if (matching.length > 0) {
-            const latest = matching[0];
-            const text = (latest.raw_text || "").toLowerCase();
-
-            let status: ContentItem["status"] = "not-started";
-            if (text.includes("published") || text.includes("posted")) status = "published";
-            else if (text.includes("reviewed") || text.includes("approved")) status = "reviewed";
-            else if (text.includes("draft") || text.includes("uploaded")) status = "drafted";
-
-            contentItems.push({
-              label: type === "pattern-card" ? "Pattern Card" :
-                     type === "currents" ? "Currents Newsletter" :
-                     type === "challenge-lab" ? "Challenge Lab" :
-                     "Build Note",
-              type: type as ContentItem["type"],
-              status,
-              source: latest.source || "unknown",
-              lastUpdate: latest.created_at,
-            });
-          }
-        }
-      }
-    }
-
-    // Ensure all content types have an entry (even if not-started)
-    const types = [
-      "pattern-card",
-      "currents",
-      "challenge-lab",
-      "build-note",
-    ] as const;
-    const labels = {
-      "pattern-card": "Pattern Card",
-      currents: "Currents Newsletter",
-      "challenge-lab": "Challenge Lab",
-      "build-note": "Build Note",
-    };
-
-    for (const type of types) {
-      if (!contentItems.find((c) => c.type === type)) {
-        contentItems.push({
-          label: labels[type],
-          type,
-          status: "not-started",
-          source: "",
-          lastUpdate: null,
-        });
-      }
-    }
-
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
     return NextResponse.json({
-      items: contentItems,
+      items: CONTENT_DEFINITIONS.map((definition) => ({
+        label: definition.label,
+        type: definition.type,
+        status: "not-started",
+        source: "",
+        lastUpdate: null,
+        cadence: definition.cadence,
+        venture: definition.venture,
+        summary: isPreLaunch ? definition.summary.preLaunch : definition.summary.live,
+        workItemCount: 0,
+        latestTitle: null,
+        assignedTo: [],
+      })),
+      isPreLaunch,
+      phaseLabel: isPreLaunch ? "Season 1 prep" : "Active publishing cadence",
+      error: "No Supabase credentials",
       fetchedAt: new Date().toISOString(),
     });
-  } catch (e) {
+  }
+
+  try {
+    const url = new URL(`${SUPABASE_URL}/rest/v1/work_queue`);
+    url.searchParams.set(
+      "select",
+      "id,title,assigned_to,status,venture,updated_at,description"
+    );
+    url.searchParams.set("or", "(venture.eq.pattern-engine,venture.eq.g2l)");
+    url.searchParams.set("order", "updated_at.desc");
+    url.searchParams.set("limit", "100");
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      next: { revalidate: 300 },
+    });
+
+    if (!res.ok) {
+      return NextResponse.json({
+        items: [],
+        isPreLaunch,
+        phaseLabel: isPreLaunch ? "Season 1 prep" : "Active publishing cadence",
+        error: `Supabase ${res.status}`,
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+
+    const rows: WorkQueueItem[] = await res.json();
+    const items = CONTENT_DEFINITIONS.map((definition) => {
+      const matches = rows.filter((item) => matchesKeywords(item, definition.keywords));
+      const latest = matches[0];
+
+      return {
+        label: definition.label,
+        type: definition.type,
+        status: getHighestStatus(matches),
+        source: latest?.assigned_to || "",
+        lastUpdate: latest?.updated_at || null,
+        cadence: definition.cadence,
+        venture: definition.venture,
+        summary: isPreLaunch ? definition.summary.preLaunch : definition.summary.live,
+        workItemCount: matches.length,
+        latestTitle: latest?.title || null,
+        assignedTo: Array.from(
+          new Set(matches.map((item) => item.assigned_to).filter(Boolean))
+        ) as string[],
+      };
+    });
+
+    return NextResponse.json({
+      items,
+      isPreLaunch,
+      phaseLabel: isPreLaunch ? "Season 1 prep" : "Active publishing cadence",
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error) {
     return NextResponse.json(
-      { error: "Failed to fetch content status", detail: String(e) },
+      {
+        items: [],
+        isPreLaunch,
+        phaseLabel: isPreLaunch ? "Season 1 prep" : "Active publishing cadence",
+        error: `Failed to fetch content status: ${String(error)}`,
+      },
       { status: 500 }
     );
   }

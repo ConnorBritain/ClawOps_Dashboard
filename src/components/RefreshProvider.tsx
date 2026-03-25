@@ -62,17 +62,17 @@ export function RefreshButton() {
     <div className="flex items-center gap-3">
       <button
         onClick={() => setAutoRefresh(!autoRefresh)}
-        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+        className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] transition-colors ${
           autoRefresh
-            ? "border-green-500/30 text-green-500/60"
-            : "border-neutral-700 text-neutral-600"
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+            : "border-white/[0.08] bg-black/20 text-neutral-500"
         }`}
       >
         {autoRefresh ? "AUTO" : "MANUAL"}
       </button>
       <button
         onClick={handleRefresh}
-        className="text-neutral-500 hover:text-neutral-300 transition-colors"
+        className="rounded-full border border-white/[0.08] bg-black/20 p-2 text-neutral-400 transition-colors hover:text-white"
         title="Refresh all data"
       >
         <svg

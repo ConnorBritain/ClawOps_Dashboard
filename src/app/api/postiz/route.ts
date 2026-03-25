@@ -43,18 +43,33 @@ export async function GET() {
     const data = await res.json();
     const posts: PostizPost[] = Array.isArray(data) ? data : [];
 
-    // Count by status
-    const scheduled = posts.filter((p) => p.status === "SCHEDULED").length;
-    const published = posts.filter((p) => p.status === "PUBLISHED").length;
-    const draft = posts.filter((p) => p.status === "DRAFT").length;
-
-    // This week's posts
     const monday = getCentralWeekStart();
+    const nextMonday = new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const thisWeekPosts = posts.filter((p) => {
-      if (!p.scheduledDate) return false;
-      return new Date(p.scheduledDate) >= monday;
+    const scheduledThisWeek = posts.filter((post) => {
+      if (!post.scheduledDate || post.status !== "SCHEDULED") {
+        return false;
+      }
+
+      const date = new Date(post.scheduledDate);
+      return date >= monday && date < nextMonday;
     });
+
+    const publishedThisWeek = posts.filter((post) => {
+      if (!post.scheduledDate || post.status !== "PUBLISHED") {
+        return false;
+      }
+
+      const date = new Date(post.scheduledDate);
+      return date >= monday && date < nextMonday;
+    });
+
+    const nextScheduled = [...scheduledThisWeek]
+      .sort(
+        (left, right) =>
+          new Date(left.scheduledDate || 0).getTime() -
+          new Date(right.scheduledDate || 0).getTime()
+      )[0] || null;
 
     return NextResponse.json({
       posts: posts.slice(0, 10).map((p) => ({
@@ -64,11 +79,23 @@ export async function GET() {
         scheduledDate: p.scheduledDate,
         channel: p.integration?.name || "Unknown",
       })),
+      summary: {
+        scheduledThisWeek: scheduledThisWeek.length,
+        publishedThisWeek: publishedThisWeek.length,
+        draftCount: posts.filter((post) => post.status === "DRAFT").length,
+        nextScheduled: nextScheduled
+          ? {
+              scheduledDate: nextScheduled.scheduledDate || "",
+              channel: nextScheduled.integration?.name || "Unknown",
+              status: nextScheduled.status,
+            }
+          : null,
+      },
       counts: {
-        scheduled,
-        published,
-        draft,
-        thisWeek: thisWeekPosts.length,
+        scheduled: posts.filter((post) => post.status === "SCHEDULED").length,
+        published: posts.filter((post) => post.status === "PUBLISHED").length,
+        draft: posts.filter((post) => post.status === "DRAFT").length,
+        thisWeek: scheduledThisWeek.length,
       },
       total: posts.length,
       fetchedAt: new Date().toISOString(),

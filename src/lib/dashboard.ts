@@ -103,10 +103,18 @@ export interface ContentItem {
   status: "not-started" | "drafted" | "reviewed" | "published";
   source: string;
   lastUpdate: string | null;
+  cadence: string;
+  venture: string;
+  summary: string;
+  workItemCount: number;
+  latestTitle: string | null;
+  assignedTo: string[];
 }
 
 export interface ContentStatusResponse {
   items: ContentItem[];
+  isPreLaunch?: boolean;
+  phaseLabel?: string;
   fetchedAt?: string;
   error?: string;
 }
@@ -119,6 +127,16 @@ export interface PostizResponse {
     scheduledDate: string | null;
     channel: string;
   }>;
+  summary?: {
+    scheduledThisWeek: number;
+    publishedThisWeek: number;
+    draftCount: number;
+    nextScheduled: {
+      scheduledDate: string;
+      channel: string;
+      status: string;
+    } | null;
+  };
   counts?: {
     scheduled: number;
     published: number;
@@ -137,6 +155,10 @@ export interface SpendResponse {
     weekly: number;
     monthly: number;
   };
+  trend?: Array<{
+    date: string;
+    total: number;
+  }>;
   fetchedAt: string;
 }
 
@@ -219,6 +241,10 @@ export function getVentureClasses(venture: string) {
 
 export function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`;
+}
+
+export function formatPercent(value: number) {
+  return `${Math.round(value)}%`;
 }
 
 export function formatDuration(value: number | null) {
